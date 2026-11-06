@@ -36,11 +36,12 @@ export function computeWeek(input: MonthInput, today: ISODate): WeekStatus {
   const weeks = weeksOfMonth(input.month);
   const week = weeks.find((w) => w.start <= today && today <= w.end)!;
   const monthEnd = weeks[weeks.length - 1].end;
-  const { variableBudget } = computeMonth(input);
+  const { variableBudget, fundOverspend } = computeMonth(input);
   const variable = input.txns.filter((t) => monthOf(t.date) === input.month && isVariable(t));
   const before = variable.filter((t) => t.date < week.start).reduce((a, t) => a + t.amount, 0);
   const spent = variable.filter((t) => t.date >= week.start && t.date <= week.end).reduce((a, t) => a + t.amount, 0);
-  const leftAtStart = variableBudget - before;
+  // fund overspend has no single date, so it counts as already spent at the week start
+  const leftAtStart = variableBudget - fundOverspend - before;
   const target = Math.max(0, Math.floor((leftAtStart / daysBetweenInclusive(week.start, monthEnd)) * week.days));
   const daysElapsed = Math.max(1, daysBetweenInclusive(week.start, today));
   const projected = Math.floor((spent / daysElapsed) * week.days);

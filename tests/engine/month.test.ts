@@ -65,3 +65,23 @@ test('leftToSpend includes carryIn', () => {
   expect(s.variableBudget).toBe(874010);
   expect(s.leftToSpend).toBe(774010);
 });
+
+import { fund } from '../fixtures/engine';
+import { computeWeek } from '../../src/engine/week';
+
+test('fund provision and overspend enter the month', () => {
+  const car = fund({ id: 'car', target: 120000, targetDate: '2026-12-01', balance: 100000 });
+  const trip = fund({ id: 'trip', target: 1200000, targetDate: '2027-08-15' });
+  const s = computeMonth({ ...base, funds: [car, trip], txns: [txn({ date: '2026-11-15', amount: 150000, fundId: 'car' })] });
+  expect(s.fundProvision).toBe(153334);
+  expect(s.fundOverspend).toBe(30000);
+  expect(s.variableBudget).toBe(894010 - 153334);
+  expect(s.variableSpent).toBe(30000);
+});
+
+test('fund overspend lowers the weekly target', () => {
+  const car = fund({ id: 'car', target: 0, targetDate: '2026-10-01', balance: 0 });
+  const plain = computeWeek({ ...base, funds: [car] }, '2026-11-10');
+  const over = computeWeek({ ...base, funds: [car], txns: [txn({ date: '2026-11-02', amount: 23000, fundId: 'car' })] }, '2026-11-10');
+  expect(over.target).toBeLessThan(plain.target);
+});

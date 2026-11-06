@@ -1,4 +1,5 @@
 import { monthOf, monthsBetween } from './dates';
+import { fundOverspend as overspendOf, fundProvision as provisionOf } from './funds';
 import type { Agorot, Fund, Month, RecurringItem, Txn } from './types';
 
 export interface MonthInput {
@@ -47,8 +48,8 @@ export function computeMonth(input: MonthInput): MonthSummary {
   const txns = all.filter((t) => monthOf(t.date) === month && !t.isCardSettlement);
   const income = recurringTotal(recurring, 'income', month, txns) + sum(txns.filter((t) => t.kind === 'income' && !t.recurringItemId));
   const fixed = recurringTotal(recurring, 'fixed', month, txns);
-  const fundProvision = 0;
-  const fundOverspend = 0;
+  const fundProvision = input.funds.reduce((a, f) => a + provisionOf(f, month), 0);
+  const fundOverspend = input.funds.reduce((a, f) => a + overspendOf(f, month, txns), 0);
   const variableBudget = income - fixed - fundProvision + carryIn;
   const variableSpent = sum(txns.filter(isVariable)) + fundOverspend;
   return { month, income, fixed, fundProvision, fundOverspend, variableBudget, variableSpent, leftToSpend: variableBudget - variableSpent };

@@ -45,7 +45,7 @@ export function HomeView({ summary, week, recent, bank, householdName, memberCou
         </div>
         <ProgressBar value={week.spent} max={week.target} tone={overspending || week.remaining < 0 ? 'warn' : 'good'} />
         <div className="muted">{`הוצאתם ${formatShekels(week.spent)} · נשארו ${formatShekels(week.remaining)} עד שבת`}</div>
-        {overspending && <div className="warn-text">{`בקצב הנוכחי תחרגו ב-~${formatShekels(week.projectedOverspend)}`}</div>}
+        {overspending && <div className="warn-text">{`בקצב הנוכחי תחרגו בכ-${formatShekels(week.projectedOverspend)}`}</div>}
       </section>
 
       <section className="card">

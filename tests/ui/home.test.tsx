@@ -42,7 +42,7 @@ test('pace warning only when projectedOverspend > 0', () => {
   expect(screen.queryByText(/בקצב הנוכחי/)).toBeNull();
   unmount();
   renderHome({ week: { ...week, projectedOverspend: 15000 } });
-  expect(screen.getByText('בקצב הנוכחי תחרגו ב-~150 ₪')).toBeInTheDocument();
+  expect(screen.getByText('בקצב הנוכחי תחרגו בכ-150 ₪')).toBeInTheDocument();
 });
 
 test('recent transactions show merchant, amount and source pill', () => {

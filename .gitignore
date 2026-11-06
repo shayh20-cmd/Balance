@@ -1,3 +1,7 @@
 .superpowers/
 node_modules/
 .env
+dist/
+.wrangler/
+.env.local
+dev-dist/

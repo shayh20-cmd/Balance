@@ -1,0 +1,18 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --line: #ececf0;
+  --good: #2e9e6a;
+  --warn: #e0962b;
+  --bad: #c0392b;
+  --accent: #1d1d1f;
+  font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); }
+.app { max-width: 480px; margin-inline: auto; min-height: 100vh; padding: 16px 16px 88px; }
+.app-header { font-weight: 700; font-size: 18px; padding-block: 8px; text-align: start; }

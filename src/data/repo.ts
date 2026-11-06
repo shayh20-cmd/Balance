@@ -13,7 +13,7 @@ export interface Category { id: string; name: string; sort: number }
 export interface Member { userId: string; displayName: string; role: 'owner' | 'member' }
 export interface BankBalance { amount: Agorot; asOf: ISODate }
 export interface FundDetails extends Fund { annual: boolean }
-export type MonthData = MonthInput & { categories: Category[]; members: Member[]; bankBalance: BankBalance | null; funds: FundDetails[] };
+export type MonthData = Omit<MonthInput, 'funds'> & { categories: Category[]; members: Member[]; bankBalance: BankBalance | null; funds: FundDetails[] };
 export type TxnDraft = Omit<Txn, 'id' | 'status'> & { note?: string | null };
 
 function check<T>(res: { data: T; error: { message: string } | null }): T {

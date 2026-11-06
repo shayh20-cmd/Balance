@@ -61,3 +61,6 @@ button:disabled { opacity: .5; }
 .month-nav button { font-size: 22px; padding: 4px 14px; }
 .filters { display: flex; gap: 6px; margin-block: 12px; }
 .filters select { flex: 1; min-width: 0; font-size: 14px; padding: 8px; }
+.wide { width: 100%; margin-block-end: 12px; }
+.actions-inline { display: flex; gap: 8px; justify-content: flex-end; }
+.link-button { background: transparent; padding: 0; text-align: start; color: inherit; }

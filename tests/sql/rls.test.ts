@@ -85,3 +85,25 @@ test('only the owner deletes the household', async () => {
   await asAdmin(db);
   expect((await db.query(`select count(*)::int n from transactions`)).rows[0]).toEqual({ n: 0 });
 });
+
+test('a user whose token has no email cannot accept an invite or create a household', async () => {
+  await create(A);
+  const token = (await db.query<{ t: string }>(`select create_invite('c@x.com') t`)).rows[0].t;
+  await db.exec('reset role');
+  await db.query(`select set_config('request.jwt.claims', $1, false)`, [JSON.stringify({ sub: C.id })]);
+  await db.exec('set role authenticated');
+  await expect(db.query(`select accept_invite($1, 'x')`, [token])).rejects.toThrow(/invite_invalid/);
+  await expect(db.query(`select create_household('x', 'y')`)).rejects.toThrow(/not_allowlisted/);
+});
+
+test('an invite alone does not allowlist the address; joining does', async () => {
+  await create(A);
+  const token = (await db.query<{ t: string }>(`select create_invite('d@x.com') t`)).rows[0].t;
+  await asAdmin(db);
+  expect((await db.query(`select * from allowlist where email = 'd@x.com'`)).rows).toHaveLength(0);
+  await db.query(`insert into auth.users values ('00000000-0000-0000-0000-00000000000d', 'd@x.com')`);
+  await asUser(db, '00000000-0000-0000-0000-00000000000d', 'd@x.com');
+  await db.query(`select accept_invite($1, 'ד')`, [token]);
+  await asAdmin(db);
+  expect((await db.query(`select * from allowlist where email = 'd@x.com'`)).rows).toHaveLength(1);
+});

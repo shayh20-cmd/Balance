@@ -121,7 +121,7 @@ declare
   cat text;
   i int := 0;
 begin
-  if not exists (select 1 from allowlist where email = lower(auth.jwt()->>'email')) then
+  if auth.jwt()->>'email' is null or not exists (select 1 from allowlist where email = lower(auth.jwt()->>'email')) then
     raise exception 'not_allowlisted';
   end if;
   if exists (select 1 from members where user_id = auth.uid()) then
@@ -149,7 +149,6 @@ begin
   if hid is null then
     raise exception 'not_member';
   end if;
-  insert into allowlist (email) values (lower(p_email)) on conflict do nothing;
   insert into invites (household_id, email, created_by) values (hid, lower(p_email), auth.uid()) returning token into tok;
   return tok;
 end
@@ -162,7 +161,7 @@ declare
 begin
   select * into inv from invites where token = p_token;
   if inv.token is null or inv.accepted_at is not null or inv.expires_at < now()
-     or inv.email <> lower(auth.jwt()->>'email') then
+     or inv.email is distinct from lower(auth.jwt()->>'email') then
     raise exception 'invite_invalid';
   end if;
   if exists (select 1 from members where user_id = auth.uid()) then
@@ -170,6 +169,8 @@ begin
   end if;
   insert into members (household_id, user_id, display_name, role) values (inv.household_id, auth.uid(), p_display_name, 'member');
   update invites set accepted_at = now() where token = p_token;
+  -- only a joined invitee is allowlisted, so an unused invite never opens sign-up
+  insert into allowlist (email) values (inv.email) on conflict do nothing;
   return inv.household_id;
 end
 $$;

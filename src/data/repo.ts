@@ -90,6 +90,11 @@ export async function addTransaction(householdId: string, draft: TxnDraft, insta
   check(await supabase.from('transactions').insert(rows));
 }
 
+export async function getTransaction(id: string): Promise<Txn & { note: string | null }> {
+  const row = check(await supabase.from('transactions').select('*').eq('id', id).single()) as TxnRow;
+  return { ...rowToTxn(row), note: row.note };
+}
+
 export async function updateTransaction(id: string, patch: Partial<TxnDraft>): Promise<void> {
   const columns: [keyof TxnDraft, string][] = [
     ['date', 'date'], ['amount', 'amount_agorot'], ['kind', 'kind'], ['merchant', 'merchant'],

@@ -37,6 +37,9 @@ npm run dev
    בסוף מתקבלת כתובת כמו `https://balance-xxx.pages.dev`.
 4. **הגדרות התחברות ב-Supabase:** ב-Authentication → URL Configuration מגדירים את Site URL לכתובת
    מ-Cloudflare ומוסיפים אותה ל-Redirect URLs. ספק המייל נשאר פעיל.
+   ב-Authentication → Email Templates → Magic Link מוסיפים לגוף המייל את הקוד:
+   `<p>או הקלידו את הקוד: {{ .Token }}</p>`. באייפון הקישור נפתח ב-Safari ולא באפליקציה המותקנת,
+   ולכן הכניסה מהאפליקציה עוברת דרך הקוד.
 5. **רשימת היתר:** ב-SQL Editor:
    ```sql
    insert into allowlist values ('your@email.com');

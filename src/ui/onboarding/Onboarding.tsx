@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { createHousehold } from '../../data/repo';
+import { supabase } from '../../data/supabase';
 import { errorText } from '../errors';
 
 export default function Onboarding({ onCreated }: { onCreated: () => void }) {
@@ -35,6 +36,8 @@ export default function Onboarding({ onCreated }: { onCreated: () => void }) {
       </label>
       {error && <p className="error" role="alert">{error}</p>}
       <button className="primary" disabled={busy}>יצירת משק בית</button>
+      <p className="muted">קיבלתם הזמנה למשק בית קיים? פתחו שוב את קישור ההזמנה.</p>
+      <button type="button" onClick={() => supabase.auth.signOut()}>יציאה</button>
     </form>
   );
 }

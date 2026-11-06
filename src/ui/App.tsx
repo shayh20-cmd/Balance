@@ -2,7 +2,8 @@ import type { Session } from '@supabase/supabase-js';
 import { useCallback, useEffect, useState } from 'react';
 import { HashRouter } from 'react-router-dom';
 import { getMyHousehold, type Household } from '../data/repo';
-import { supabase } from '../data/supabase';
+import { launchSearch, supabase } from '../data/supabase';
+import { linkFailureNotice } from './auth/linkNotice';
 import SignIn from './auth/SignIn';
 import { HouseholdContext } from './household';
 import AcceptInvite from './onboarding/AcceptInvite';
@@ -43,24 +44,30 @@ function clearPendingInvite(): void {
 
 type State =
   | { kind: 'loading' }
-  | { kind: 'signed-out' }
+  | { kind: 'signed-out'; notice: string | null }
   | { kind: 'no-household'; invite: string | null }
   | { kind: 'ready'; household: Household; userId: string };
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     takeInviteFromUrl();
-    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    // supabase-js exchanges a ?code= link before getSession resolves; read the URL only after that
+    supabase.auth.getSession().then(({ data }) => {
+      setNotice(linkFailureNotice(launchSearch, !!data.session));
+      if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+      setSession(data.session);
+    });
     const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
 
   const load = useCallback(async () => {
     if (session === undefined) return;
-    if (!session) return setState({ kind: 'signed-out' });
+    if (!session) return setState({ kind: 'signed-out', notice });
     try {
       const household = await getMyHousehold();
       if (household) {
@@ -72,7 +79,7 @@ export default function App() {
     } catch {
       setState({ kind: 'no-household', invite: pendingInvite() });
     }
-  }, [session]);
+  }, [session, notice]);
 
   useEffect(() => {
     load();
@@ -83,9 +90,21 @@ export default function App() {
       <div className="app">
         <header className="app-header">Balance</header>
         {state.kind === 'loading' && <p className="muted">טוען…</p>}
-        {state.kind === 'signed-out' && <SignIn />}
+        {state.kind === 'signed-out' && <SignIn notice={state.notice} />}
         {state.kind === 'no-household' &&
-          (state.invite ? <AcceptInvite token={state.invite} onJoined={load} /> : <Onboarding onCreated={load} />)}
+          (state.invite ? (
+            <AcceptInvite
+              token={state.invite}
+              onJoined={load}
+              onInvalid={clearPendingInvite}
+              onDecline={() => {
+                clearPendingInvite();
+                setState({ kind: 'no-household', invite: null });
+              }}
+            />
+          ) : (
+            <Onboarding onCreated={load} />
+          ))}
         {state.kind === 'ready' && (
           <HouseholdContext.Provider value={{ household: state.household, userId: state.userId, reload: load }}>
             <HashRouter>

@@ -1,3 +1,5 @@
+import { monthOf } from '../engine/dates';
+import { fundBalanceBefore, type FundFlow } from '../engine/funds';
 import type { Fund, Month, RecurringItem, Txn } from '../engine/types';
 
 export interface TxnRow {
@@ -42,6 +44,7 @@ export interface FundRow {
   target_date: string;
   is_general: boolean;
   annual: boolean;
+  created_at: string;
 }
 
 export interface FundEntryRow {
@@ -49,6 +52,14 @@ export interface FundEntryRow {
   month: string;
   amount_agorot: number;
   kind: 'provision' | 'deposit' | 'withdrawal' | 'adjust';
+}
+
+/** A transaction linked to a fund, from before the month being loaded. */
+export interface FundSpendRow {
+  fund_id: string;
+  date: string;
+  amount_agorot: number;
+  kind: Txn['kind'];
 }
 
 export function rowToTxn(r: TxnRow): Txn {
@@ -83,10 +94,21 @@ export function recurringToRow(i: Omit<RecurringItem, 'id'> & { id?: string }, h
   };
 }
 
-/** balance = the fund's entries dated before `month`; withdrawals count negative. */
-export function rowToFund(r: FundRow, entries: FundEntryRow[], month: Month): Fund {
-  const balance = entries
-    .filter((e) => e.fund_id === r.id && e.month.slice(0, 7) < month)
-    .reduce((a, e) => a + (e.kind === 'withdrawal' ? -e.amount_agorot : e.amount_agorot), 0);
-  return { id: r.id, name: r.name, target: r.target_agorot, targetDate: r.target_date, balance, isGeneral: r.is_general };
+/**
+ * balance = the replay in fundBalanceBefore from the fund's creation month. Provision entries are implied by
+ * the replay and ignored; deposits and adjustments add, withdrawals and linked expenses subtract.
+ */
+export function rowToFund(r: FundRow, entries: FundEntryRow[], month: Month, spent: FundSpendRow[]): Fund {
+  const flows: Record<Month, FundFlow> = {};
+  const flow = (m: Month) => (flows[m] ??= { deposits: 0, spent: 0 });
+  for (const e of entries) {
+    if (e.fund_id !== r.id || e.kind === 'provision') continue;
+    flow(e.month.slice(0, 7)).deposits += e.kind === 'withdrawal' ? -e.amount_agorot : e.amount_agorot;
+  }
+  for (const t of spent) {
+    if (t.fund_id === r.id && t.kind === 'expense') flow(monthOf(t.date)).spent += t.amount_agorot;
+  }
+  const fund = { target: r.target_agorot, targetDate: r.target_date, isGeneral: r.is_general };
+  const balance = fundBalanceBefore(fund, monthOf(r.created_at.slice(0, 10)), month, flows);
+  return { id: r.id, name: r.name, ...fund, balance };
 }

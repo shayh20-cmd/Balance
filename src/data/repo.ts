@@ -4,7 +4,7 @@ import type { MonthInput } from '../engine/month';
 import type { Agorot, Fund, ISODate, Month, RecurringItem, Txn } from '../engine/types';
 import {
   recurringToRow, rowToFund, rowToRecurring, rowToTxn, txnToRow,
-  type FundEntryRow, type FundRow, type RecurringRow, type TxnRow,
+  type FundEntryRow, type FundRow, type FundSpendRow, type RecurringRow, type TxnRow,
 } from './mappers';
 import { supabase } from './supabase';
 
@@ -51,7 +51,7 @@ export async function acceptInvite(token: string, displayName: string): Promise<
 export async function loadMonth(householdId: string, month: Month): Promise<MonthData> {
   const from = `${month}-01`;
   const to = `${addMonths(month, 1)}-01`;
-  const [txns, recurring, funds, entries, categories, members, bank] = await Promise.all([
+  const [txns, recurring, funds, entries, categories, members, bank, fundSpend] = await Promise.all([
     supabase.from('transactions').select('*').eq('household_id', householdId).gte('date', from).lt('date', to)
       .order('date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('recurring_items').select('*').eq('household_id', householdId).order('created_at'),
@@ -60,7 +60,11 @@ export async function loadMonth(householdId: string, month: Month): Promise<Mont
     supabase.from('categories').select('id, name, sort').eq('household_id', householdId).order('sort'),
     supabase.from('members').select('user_id, display_name, role').eq('household_id', householdId),
     supabase.from('bank_balance').select('amount_agorot, as_of').eq('household_id', householdId).maybeSingle(),
+    // earlier spending from funds, so each fund's balance can be replayed
+    supabase.from('transactions').select('fund_id, date, amount_agorot, kind').eq('household_id', householdId)
+      .not('fund_id', 'is', null).lt('date', from),
   ]);
+  const spendRows = check(fundSpend) as FundSpendRow[];
   const entryRows = check(entries) as FundEntryRow[];
   const bankRow = check(bank) as { amount_agorot: number; as_of: string } | null;
   const memberRows = check(members) as { user_id: string; display_name: string; role: Member['role'] }[];
@@ -68,7 +72,7 @@ export async function loadMonth(householdId: string, month: Month): Promise<Mont
     month,
     txns: (check(txns) as TxnRow[]).map(rowToTxn),
     recurring: (check(recurring) as RecurringRow[]).map(rowToRecurring),
-    funds: (check(funds) as FundRow[]).map((r) => ({ ...rowToFund(r, entryRows, month), annual: r.annual })),
+    funds: (check(funds) as FundRow[]).map((r) => ({ ...rowToFund(r, entryRows, month, spendRows), annual: r.annual })),
     carryIn: 0,
     categories: check(categories) as Category[],
     members: memberRows.map((m) => ({ userId: m.user_id, displayName: m.display_name, role: m.role })),

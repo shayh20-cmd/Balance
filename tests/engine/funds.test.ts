@@ -24,3 +24,24 @@ test('spending beyond what the fund holds is overspend', () => {
   expect(fundOverspend(car, '2026-11', [txn({ date: '2026-11-15', amount: 150000, fundId: 'car' })])).toBe(30000);
   expect(fundOverspend(car, '2026-11', [txn({ date: '2026-11-15', amount: 90000, fundId: 'car' })])).toBe(0);
 });
+
+import { fundBalanceBefore } from '../../src/engine/funds';
+
+test('past provisions accumulate: the trip is fully funded by its target month', () => {
+  expect(fundBalanceBefore(trip, '2026-11', '2026-11', {})).toBe(0);
+  expect(fundBalanceBefore(trip, '2026-11', '2026-12', {})).toBe(133334);
+  expect(fundBalanceBefore(trip, '2026-11', '2027-08', {})).toBe(1200000);
+  expect(fundProvision({ ...trip, balance: fundBalanceBefore(trip, '2026-11', '2027-08', {}) }, '2027-08')).toBe(0);
+});
+
+test('spending from a fund lowers its balance and deposits raise it; it never goes below zero', () => {
+  const car = fund({ id: 'car', target: 300000, targetDate: '2027-02-01' });
+  // Nov: provision 100000, spent 40000 → 60000. Dec: deposit 10000, provision ceil(230000/2) = 115000 → 185000.
+  expect(fundBalanceBefore(car, '2026-11', '2027-01', { '2026-11': { deposits: 0, spent: 40000 }, '2026-12': { deposits: 10000, spent: 0 } })).toBe(185000);
+  expect(fundBalanceBefore(car, '2026-11', '2026-12', { '2026-11': { deposits: 0, spent: 999999 } })).toBe(0);
+});
+
+test('the general fund only collects deposits', () => {
+  const g = fund({ id: 'g', target: 0, targetDate: '2099-12-31', isGeneral: true });
+  expect(fundBalanceBefore(g, '2026-11', '2027-01', { '2026-11': { deposits: 32000, spent: 0 } })).toBe(32000);
+});

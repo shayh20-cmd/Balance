@@ -1,4 +1,4 @@
-import { recurringToRow, rowToFund, rowToRecurring, rowToTxn, txnToRow, type FundEntryRow, type TxnRow } from '../../src/data/mappers';
+import { recurringToRow, rowToFund, rowToRecurring, rowToTxn, txnToRow, type FundEntryRow, type FundSpendRow, type TxnRow } from '../../src/data/mappers';
 
 const txnRow: TxnRow = {
   id: 't1', household_id: 'h1', member_id: 'u1', date: '2026-11-05', amount_agorot: 34200, kind: 'expense',
@@ -25,14 +25,19 @@ test('recurring start_month date becomes a Month and back', () => {
   expect(recurringToRow(r, 'h1').start_month).toBe('2026-02-01');
 });
 
-test('fund balance sums entries before the computed month', () => {
+test('fund balance replays provisions, deposits and fund spending from the creation month', () => {
   const entries: FundEntryRow[] = [
-    { fund_id: 'f1', month: '2026-10-01', amount_agorot: 50000, kind: 'provision' },
+    { fund_id: 'f1', month: '2026-10-01', amount_agorot: 50000, kind: 'provision' }, // implied by the replay, ignored
     { fund_id: 'f1', month: '2026-10-01', amount_agorot: 30000, kind: 'deposit' },
     { fund_id: 'f1', month: '2026-10-01', amount_agorot: 20000, kind: 'withdrawal' },
-    { fund_id: 'f1', month: '2026-11-01', amount_agorot: 10000, kind: 'deposit' },
+    { fund_id: 'f1', month: '2026-11-01', amount_agorot: 10000, kind: 'deposit' }, // this month: not yet in the balance
     { fund_id: 'f2', month: '2026-10-01', amount_agorot: 99999, kind: 'deposit' },
   ];
-  const f = rowToFund({ id: 'f1', household_id: 'h1', name: 'רכב', target_agorot: 380000, target_date: '2027-03-01', is_general: false, annual: true }, entries, '2026-11');
-  expect(f).toEqual({ id: 'f1', name: 'רכב', target: 380000, targetDate: '2027-03-01', balance: 60000, isGeneral: false });
+  const spent: FundSpendRow[] = [
+    { fund_id: 'f1', date: '2026-10-20', amount_agorot: 6000, kind: 'expense' },
+    { fund_id: 'f2', date: '2026-10-20', amount_agorot: 5000, kind: 'expense' },
+  ];
+  const row = { id: 'f1', household_id: 'h1', name: 'רכב', target_agorot: 380000, target_date: '2027-03-01', is_general: false, annual: true, created_at: '2026-10-12T08:00:00Z' };
+  // October: +30000 −20000 deposits, provision ceil(370000/5) = 74000, −6000 spent → 78000
+  expect(rowToFund(row, entries, '2026-11', spent)).toEqual({ id: 'f1', name: 'רכב', target: 380000, targetDate: '2027-03-01', balance: 78000, isGeneral: false });
 });

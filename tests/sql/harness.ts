@@ -2,7 +2,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-const root = join(__dirname, '..', '..', 'supabase');
+const root = join(process.cwd(), 'supabase');
 
 export async function newDb(): Promise<PGlite> {
   const db = new PGlite();

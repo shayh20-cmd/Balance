@@ -33,13 +33,17 @@ export function isVariable(t: Txn): boolean {
 
 const sum = (xs: Txn[]) => xs.reduce((a, t) => a + t.amount, 0);
 
-/** Recurring totals: the linked actuals of a due item replace its expected amount. */
+/**
+ * Recurring totals: an item's linked actuals replace its expected amount. Linked actuals count even in a
+ * month the item isn't due (paid early or off-cycle), and an item with nothing linked counts only when due.
+ */
 function recurringTotal(items: RecurringItem[], kind: RecurringItem['kind'], m: Month, txns: Txn[]): Agorot {
   return items
-    .filter((i) => i.kind === kind && isDueInMonth(i, m))
+    .filter((i) => i.kind === kind)
     .reduce((a, i) => {
       const linked = txns.filter((t) => t.recurringItemId === i.id);
-      return a + (linked.length ? sum(linked) : i.amount);
+      if (linked.length) return a + sum(linked);
+      return a + (isDueInMonth(i, m) ? i.amount : 0);
     }, 0);
 }
 

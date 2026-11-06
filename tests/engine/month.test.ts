@@ -85,3 +85,15 @@ test('fund overspend lowers the weekly target', () => {
   const over = computeWeek({ ...base, funds: [car], txns: [txn({ date: '2026-11-02', amount: 23000, fundId: 'car' })] }, '2026-11-10');
   expect(over.target).toBeLessThan(plain.target);
 });
+
+test('a payment linked to a fixed item outside its due month still counts as fixed', () => {
+  const s = computeMonth({ ...base, txns: [txn({ date: '2026-11-20', amount: 80000, recurringItemId: 'arnona' })] });
+  expect(s.fixed).toBe(605990 + 80000);
+  expect(s.variableSpent).toBe(0);
+});
+
+test('income linked to an item outside its due month still counts as income', () => {
+  const bonus = item({ id: 'bonus', kind: 'income', amount: 500000, intervalMonths: 12, startMonth: '2026-03' });
+  const s = computeMonth({ ...base, recurring: [...recurring, bonus], txns: [txn({ date: '2026-11-20', amount: 450000, kind: 'income', recurringItemId: 'bonus' })] });
+  expect(s.income).toBe(1500000 + 450000);
+});

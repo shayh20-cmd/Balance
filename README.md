@@ -29,14 +29,11 @@ npm run dev
    npx supabase db push
    ```
    `supabase/tests/auth-stub.sql` משמש רק לבדיקות ולא נדחף.
-3. **Cloudflare Pages:**
-   ```bash
-   npx wrangler login
-   npm run deploy
-   ```
-   בסוף מתקבלת כתובת כמו `https://balance-xxx.pages.dev`.
+3. **GitHub Pages:** כל דחיפה ל-`main` בונה ומעלה את האתר דרך `.github/workflows/deploy.yml`
+   (הבדיקות רצות קודם). הכתובת: `https://shayh20-cmd.github.io/Balance/`. כתובת הפרויקט והמפתח
+   הציבורי נמצאים ב-`.env.production`; הם ציבוריים מעצם הגדרתם, וההרשאות נאכפות במסד.
 4. **הגדרות התחברות ב-Supabase:** ב-Authentication → URL Configuration מגדירים את Site URL לכתובת
-   מ-Cloudflare ומוסיפים אותה ל-Redirect URLs. ספק המייל נשאר פעיל.
+   של GitHub Pages ומוסיפים אותה ל-Redirect URLs. ספק המייל נשאר פעיל.
    ב-Authentication → Email Templates → Magic Link מוסיפים לגוף המייל את הקוד:
    `<p>או הקלידו את הקוד: {{ .Token }}</p>`. באייפון הקישור נפתח ב-Safari ולא באפליקציה המותקנת,
    ולכן הכניסה מהאפליקציה עוברת דרך הקוד.
@@ -48,8 +45,6 @@ npm run dev
 
 ## פריסה של גרסה חדשה
 
-```bash
-npm run deploy
-```
+דוחפים ל-`main`. GitHub Actions מריץ את הבדיקות, בונה ומעלה.
 
 שינוי במסד: קובץ חדש ב-`supabase/migrations/` ואז `npx supabase db push`.

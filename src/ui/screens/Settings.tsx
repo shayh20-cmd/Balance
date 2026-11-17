@@ -3,6 +3,7 @@ import { createInvite, loadMonth, setBankBalance, type MonthData } from '../../d
 import { supabase } from '../../data/supabase';
 import { monthOf, todayInIsrael } from '../../engine/dates';
 import { toAgorot } from '../../engine/money';
+import DevicesSection from '../components/DevicesSection';
 import { useHousehold } from '../household';
 import { useToast } from '../toast';
 
@@ -73,6 +74,8 @@ export default function Settings() {
           </div>
         ))}
       </section>
+
+      <DevicesSection />
 
       <form className="card form" onSubmit={invite}>
         <h2>הזמנת משתתף</h2>

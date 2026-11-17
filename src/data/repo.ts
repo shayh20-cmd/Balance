@@ -135,6 +135,24 @@ export async function deleteFund(id: string): Promise<void> {
   check(await supabase.from('funds').delete().eq('id', id).eq('is_general', false));
 }
 
+export interface Device { id: string; name: string; lastSeenAt: string | null; token: string }
+
+export async function listDevices(householdId: string): Promise<Device[]> {
+  const rows = check(
+    await supabase.from('devices').select('id, name, last_seen_at, token').eq('household_id', householdId)
+      .is('revoked_at', null).order('created_at'),
+  ) as { id: string; name: string; last_seen_at: string | null; token: string }[];
+  return rows.map((r) => ({ id: r.id, name: r.name, lastSeenAt: r.last_seen_at, token: r.token }));
+}
+
+export async function createDevice(name: string): Promise<string> {
+  return check(await supabase.rpc('create_device', { p_name: name })) as string;
+}
+
+export async function revokeDevice(id: string): Promise<void> {
+  check(await supabase.from('devices').update({ revoked_at: new Date().toISOString() }).eq('id', id));
+}
+
 export async function setBankBalance(householdId: string, amount: Agorot, asOf: ISODate): Promise<void> {
   check(await supabase.from('bank_balance').upsert({ household_id: householdId, amount_agorot: amount, as_of: asOf }));
 }

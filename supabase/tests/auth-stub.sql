@@ -12,5 +12,6 @@ create function auth.uid() returns uuid language sql stable as $$
 $$;
 grant usage on schema public, auth to authenticated, anon;
 grant execute on all functions in schema auth to authenticated, anon;
-alter default privileges in schema public grant all on tables to authenticated;
-alter default privileges in schema public grant execute on functions to authenticated;
+-- Like Supabase: both API roles get table and function privileges by default; RLS decides the rows.
+alter default privileges in schema public grant all on tables to authenticated, anon;
+alter default privileges in schema public grant execute on functions to authenticated, anon;

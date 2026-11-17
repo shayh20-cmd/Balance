@@ -48,9 +48,9 @@ export default function DeviceSetup({ token, apiKey }: { token: string; apiKey: 
         <li>
           <b>פעולה:</b> לוחצים על הפלוס ליד <b dir="ltr">Actions</b>, ובוחרים
           <br />
-          <b dir="ltr">Connectivity → HTTP Request</b>
+          <b dir="ltr">Web Interactions → HTTP Request</b>
           <br />
-          שיטה <b dir="ltr">POST</b>, ומעתיקים לשם את שלושת השדות שכאן.
+          (או מחפשים HTTP בזכוכית המגדלת). שיטה <b dir="ltr">POST</b>, ומעתיקים לשם את שלושת השדות שכאן.
         </li>
         <li>
           תחת <b dir="ltr">Headers</b> מוסיפים כותרת בשם <b dir="ltr">apikey</b> עם הערך שכאן, ובסוג התוכן בוחרים

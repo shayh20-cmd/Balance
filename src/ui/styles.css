@@ -2,15 +2,25 @@
   --bg: #ece9e2;
   --card: #ffffff;
   --text: #141414;
-  --muted: #8c8981;
+  --muted: #6b675f;
   --line: #eeebe4;
   --lime: #d5f35b;
   --dark: #161616;
   --dark-muted: #9a978f;
   --good: #2e9e6a;
-  --warn: #e0962b;
+  --warn: #a8650a;
   --bad: #c0392b;
   --accent: #141414;
+  --income: #1b7d52;
+  --fixed: #3a3f4b;
+  --variable: #e0603a;
+  --fs-display: 44px;
+  --fs-title: 24px;
+  --fs-amount: 26px;
+  --fs-amount-sm: 18px;
+  --fs-body: 15px;
+  --fs-label: 13px;
+  --fs-caption: 12px;
   --radius: 24px;
   --shadow: 0 1px 2px rgb(0 0 0 / 4%);
   --ease-out: cubic-bezier(.2, .8, .2, 1);
@@ -57,7 +67,7 @@ button:disabled { opacity: .5; }
 .dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-block-start: 12px; }
 .amount { font-variant-numeric: tabular-nums; }
 .amount.negative { color: var(--bad); }
-.amount.income { color: var(--good); }
+.amount.income { color: var(--income); }
 .bar { height: 12px; border-radius: 999px; background: var(--line); overflow: hidden; margin-block: 14px 8px; }
 .bar > i { display: block; height: 100%; border-radius: 999px; background: var(--good); transition: width .3s; }
 .bar > i.warn { background: var(--warn); }
@@ -127,9 +137,40 @@ a.card:active, .tx:active, .fab:active, button:active:not(:disabled) { transform
   .home.intro .rise, .home.intro .bar > i { animation: none; }
   .card, button, .fab, .bar > i { transition: none; }
 }
-.home-top .month-nav h1 { margin: 0; }
-.home-top .month-nav button { background: transparent; font-size: 22px; padding: 4px 10px; }
-.sub-bar { display: block; padding-block: 10px 2px; border-block-start: 1px solid var(--line); margin-block-start: 10px; }
-.sub-bar .split span { font-size: 14px; }
-.detail-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-block: 8px; border-block-end: 1px solid var(--line); font-size: 14px; }
-.detail-line .amounts { text-align: end; }
+/* ---- home, per design-system/balance/MASTER.md ---- */
+.home-top { text-align: center; }
+.home-top .month-nav { margin-block-end: 2px; }
+.home-top .month-nav h1 { margin: 0; font-size: var(--fs-title); }
+.icon-btn { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; border-radius: 999px; background: var(--card); }
+.icon-btn svg { width: 20px; height: 20px; }
+.amount.big { font-size: var(--fs-display); }
+.card-head { display: flex; align-items: center; gap: 10px; margin-block-end: 10px; }
+.card-head .label { flex: 1; font-weight: 500; color: var(--text) !important; font-size: var(--fs-body) !important; }
+.chip { flex: none; width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--line); color: var(--text); }
+.chip svg, .chev svg { width: 20px; height: 20px; }
+.chip.income { background: rgb(27 125 82 / 12%); color: var(--income); }
+.chip.expense { background: rgb(224 96 58 / 12%); color: var(--variable); }
+.chip.week { background: rgb(213 243 91 / 45%); }
+.chev { color: var(--muted); display: grid; place-items: center; }
+.bar > i.income { background: var(--income); }
+.bar > i.fixed { background: var(--fixed); }
+.bar > i.variable { background: var(--variable); }
+.split-bar { display: flex; gap: 3px; height: 10px; margin-block: 12px 4px; }
+.split-bar > i { display: block; height: 100%; border-radius: 999px; min-width: 6px; }
+.split-bar > i.fixed { background: var(--fixed); }
+.split-bar > i.variable { background: var(--variable); }
+.sub-bar { display: block; min-height: 44px; padding-block: 12px 2px; border-block-start: 1px solid var(--line); margin-block-start: 12px; }
+.sub-bar .split { align-items: center; }
+.sub-bar .name { display: flex; align-items: center; gap: 8px; font-size: var(--fs-body); }
+.dot { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+.dot.fixed { background: var(--fixed); }
+.dot.variable { background: var(--variable); }
+.sub-bar .bar { height: 8px; margin-block: 10px 6px; }
+.home .amount.mid { font-size: var(--fs-amount); }
+.home .amount.small { font-size: var(--fs-amount-sm); }
+.home .sub { font-size: var(--fs-caption); }
+.home .label { font-size: var(--fs-label); }
+.detail-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; min-height: 44px; padding-block: 10px; border-block-end: 1px solid var(--line); font-size: 14px; }
+.detail-line .amounts { text-align: end; display: flex; flex-direction: column; gap: 2px; }
+.card.dark .card-head .label { color: #fff !important; }
+.chip.dark-chip { background: rgb(255 255 255 / 10%); color: #fff; }

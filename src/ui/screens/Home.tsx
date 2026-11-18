@@ -10,6 +10,7 @@ import type { ISODate, Month, Txn } from '../../engine/types';
 import { computeWeek, type WeekStatus } from '../../engine/week';
 import Amount from '../components/Amount';
 import CloseReminder from '../components/CloseReminder';
+import Icon from '../components/Icon';
 import ProgressBar from '../components/ProgressBar';
 import SourcePill from '../components/SourcePill';
 import { monthName, shortDate } from '../format';
@@ -46,6 +47,18 @@ function initial(merchant: string): string {
   return merchant.trim().charAt(0).toUpperCase() || '·';
 }
 
+/** Fixed and variable as two segments of the month's spending. */
+function SplitBar({ fixed, variable }: { fixed: number; variable: number }) {
+  const total = fixed + variable;
+  if (total <= 0) return null;
+  return (
+    <div className="split-bar" role="presentation">
+      <i className="fixed" style={{ flex: Math.max(fixed, 0) }} />
+      <i className="variable" style={{ flex: Math.max(variable, 0) }} />
+    </div>
+  );
+}
+
 const heroLabel = { past: 'נשאר בסוף החודש', now: 'נשאר לבזבז החודש', future: 'צפוי להוצאות משתנות' };
 
 export function HomeView({
@@ -58,9 +71,9 @@ export function HomeView({
     <div className={intro ? 'home intro' : 'home'}>
       <header className="home-top rise" {...rise(0)}>
         <div className="month-nav">
-          <button type="button" aria-label="החודש הקודם" onClick={onPrev}>›</button>
+          <button type="button" className="icon-btn" aria-label="החודש הקודם" onClick={onPrev}><Icon name="chevronRight" /></button>
           <h1>{`${monthName(m)} ${m.slice(0, 4)}`}</h1>
-          <button type="button" aria-label="החודש הבא" onClick={onNext}>‹</button>
+          <button type="button" className="icon-btn" aria-label="החודש הבא" onClick={onNext}><Icon name="chevronLeft" /></button>
         </div>
         <div className="muted">{`${householdName} · ${memberCount} משתתפים`}</div>
       </header>
@@ -79,7 +92,10 @@ export function HomeView({
 
       {week && (
       <section className="card week rise" {...rise(2)}>
-        <h2 className="card-title">{`השבוע (${week.week.index} מתוך ${week.weekCount})`}</h2>
+        <div className="card-head">
+          <span className="chip week"><Icon name="calendar" /></span>
+          <h2 className="card-title label">{`השבוע (${week.week.index} מתוך ${week.weekCount})`}</h2>
+        </div>
         <div className="split">
           <div>
             <div className="label">הוצאתם</div>
@@ -98,36 +114,46 @@ export function HomeView({
 
       {breakdown && (
         <Link to={`/month/${m}/income`} className="card tile-link rise" {...rise(3)}>
-          <div className="split">
-            <div className="label">הכנסות</div>
-            <Amount value={summary.income} className="mid" />
+          <div className="card-head">
+            <span className="chip income"><Icon name="income" /></span>
+            <span className="label">הכנסות</span>
+            <span className="chev"><Icon name="chevronLeft" /></span>
           </div>
-          <ProgressBar value={breakdown.received} max={summary.income} />
-          <div className="sub">{`התקבלו ${formatShekels(breakdown.received)}`}</div>
+          <Amount value={summary.income} className="mid" />
+          <ProgressBar value={breakdown.received} max={summary.income} tone="income" />
+          <div className="sub">{`התקבלו ${formatShekels(breakdown.received)} מתוך ${formatShekels(summary.income)}`}</div>
         </Link>
       )}
 
       {breakdown && (
         <section className="card rise" {...rise(4)}>
-          <div className="split">
-            <div className="label">הוצאות החודש</div>
-            <Amount value={summary.fixed + summary.variableSpent} className="mid" />
+          <div className="card-head">
+            <span className="chip expense"><Icon name="expense" /></span>
+            <span className="label">הוצאות החודש</span>
           </div>
+          <Amount value={summary.fixed + summary.variableSpent} className="mid" />
+          <SplitBar fixed={summary.fixed} variable={summary.variableSpent} />
           <Link to={`/month/${m}/fixed`} className="sub-bar link-row">
             <div className="split">
-              <span>קבועות</span>
-              <Amount value={summary.fixed} className="small" />
+              <span className="name"><i className="dot fixed" />קבועות</span>
+              <span className="name">
+                <Amount value={summary.fixed} className="small" />
+                <span className="chev"><Icon name="chevronLeft" /></span>
+              </span>
             </div>
-            <ProgressBar value={breakdown.paidFixed} max={summary.fixed} />
+            <ProgressBar value={breakdown.paidFixed} max={summary.fixed} tone="fixed" />
             <div className="sub">{`שולמו ${formatShekels(breakdown.paidFixed)}`}</div>
           </Link>
           <Link to={`/month/${m}/variable`} className="sub-bar link-row">
             <div className="split">
-              <span>משתנות</span>
-              <Amount value={summary.variableSpent} className="small" />
+              <span className="name"><i className="dot variable" />משתנות</span>
+              <span className="name">
+                <Amount value={summary.variableSpent} className="small" />
+                <span className="chev"><Icon name="chevronLeft" /></span>
+              </span>
             </div>
-            <ProgressBar value={summary.variableSpent} max={summary.variableBudget} tone={summary.leftToSpend < 0 ? 'bad' : 'good'} />
-            <div className="sub">{`מתוך ${formatShekels(summary.variableBudget)}`}</div>
+            <ProgressBar value={summary.variableSpent} max={summary.variableBudget} tone={summary.leftToSpend < 0 ? 'bad' : 'variable'} />
+            <div className="sub">{`מתוך תקציב של ${formatShekels(summary.variableBudget)}`}</div>
           </Link>
           {summary.fundProvision > 0 && <div className="sub">{`ועוד הפרשה לקופות: ${formatShekels(summary.fundProvision)}`}</div>}
         </section>
@@ -135,7 +161,10 @@ export function HomeView({
 
       <div className={toReview > 0 ? 'pair' : 'pair single'}>
         <section className="card dark rise" {...rise(5)}>
-          <div className="label">יתרה בבנק</div>
+          <div className="card-head">
+            <span className="chip dark-chip"><Icon name="wallet" /></span>
+            <span className="label">יתרה בבנק</span>
+          </div>
           {bank ? (
             <>
               <Amount value={bank.amount} className="mid" animate />

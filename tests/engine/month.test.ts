@@ -1,4 +1,4 @@
-import { computeMonth, isDueInMonth } from '../../src/engine/month';
+import { computeMonth, expectedAmount, isDueInMonth } from '../../src/engine/month';
 import { item, txn } from '../fixtures/engine';
 
 const salary = item({ id: 'salary', kind: 'income', amount: 1500000 });
@@ -96,4 +96,40 @@ test('income linked to an item outside its due month still counts as income', ()
   const bonus = item({ id: 'bonus', kind: 'income', amount: 500000, intervalMonths: 12, startMonth: '2026-03' });
   const s = computeMonth({ ...base, recurring: [...recurring, bonus], txns: [txn({ date: '2026-11-20', amount: 450000, kind: 'income', recurringItemId: 'bonus' })] });
   expect(s.income).toBe(1500000 + 450000);
+});
+
+const loan = item({ id: 'loan', kind: 'fixed', amount: 100000, startMonth: '2026-01', endMonth: '2026-12' });
+
+test('an item is not due after its end month', () => {
+  expect(isDueInMonth(loan, '2026-12')).toBe(true);
+  expect(isDueInMonth(loan, '2027-01')).toBe(false);
+  expect(computeMonth({ ...base, month: '2027-01', recurring: [loan] }).fixed).toBe(0);
+});
+
+test('a linked payment after the end month still counts', () => {
+  const late = txn({ date: '2027-01-05', amount: 100000, recurringItemId: 'loan' });
+  expect(computeMonth({ ...base, month: '2027-01', recurring: [loan], txns: [late] }).fixed).toBe(100000);
+});
+
+const water = item({ id: 'water', kind: 'fixed', amount: 23900, variableAmount: true });
+
+test('variable item expects the average of its last 3 months with actuals', () => {
+  const h = { '2026-07': 20000, '2026-09': 26000, '2026-10': 30000, '2026-11': 99999 };
+  expect(expectedAmount(water, h, '2026-11')).toBe(25333);
+  expect(computeMonth({ ...base, recurring: [water], history: { water: h } }).fixed).toBe(25333);
+});
+
+test('variable item with no history expects the entered amount', () => {
+  expect(expectedAmount(water, undefined, '2026-11')).toBe(23900);
+  expect(expectedAmount(water, {}, '2026-11')).toBe(23900);
+});
+
+test('a month with two linked payments counts as their sum', () => {
+  // history holds per-month sums: a catch-up month of 2 bills is one month of 40000
+  expect(expectedAmount(water, { '2026-09': 40000, '2026-10': 20000 }, '2026-11')).toBe(30000);
+});
+
+test('non-variable item ignores history', () => {
+  const fixedWater = { ...water, variableAmount: false };
+  expect(expectedAmount(fixedWater, { '2026-10': 50000 }, '2026-11')).toBe(23900);
 });

@@ -35,6 +35,12 @@ export interface RecurringItem {
   startMonth: Month;
   active: boolean;
   paidBy: 'bank' | 'card';
+  /** Last month it is due in; null = no end (loans, installment purchases end). */
+  endMonth: Month | null;
+  /** The amount varies (water, electricity): expect the average of recent actuals. */
+  variableAmount: boolean;
+  /** Set on items made from a card installment purchase; unique per household. */
+  installmentKey: string | null;
 }
 
 export interface Fund {

@@ -38,6 +38,9 @@ export interface RecurringRow {
   paid_by: RecurringItem['paidBy'];
   category_id: string | null;
   active: boolean;
+  end_month: string | null; // date, first of month
+  variable_amount: boolean;
+  installment_key: string | null;
 }
 
 export interface FundRow {
@@ -88,6 +91,8 @@ export function rowToRecurring(r: RecurringRow): RecurringItem {
   return {
     id: r.id, kind: r.kind, name: r.name, amount: r.amount_agorot, dayOfMonth: r.day_of_month,
     intervalMonths: r.interval_months, startMonth: r.start_month.slice(0, 7), active: r.active, paidBy: r.paid_by,
+    endMonth: r.end_month ? r.end_month.slice(0, 7) : null, variableAmount: r.variable_amount ?? false,
+    installmentKey: r.installment_key ?? null,
   };
 }
 
@@ -96,6 +101,7 @@ export function recurringToRow(i: Omit<RecurringItem, 'id'> & { id?: string }, h
     ...(i.id ? { id: i.id } : {}),
     household_id: householdId, kind: i.kind, name: i.name, amount_agorot: i.amount, day_of_month: i.dayOfMonth,
     interval_months: i.intervalMonths, start_month: `${i.startMonth}-01`, paid_by: i.paidBy, active: i.active,
+    end_month: i.endMonth ? `${i.endMonth}-01` : null, variable_amount: i.variableAmount, installment_key: i.installmentKey,
   };
 }
 

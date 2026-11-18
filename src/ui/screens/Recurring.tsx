@@ -11,6 +11,7 @@ import { useToast } from '../toast';
 type Editing = {
   id?: string; kind: RecurringItem['kind']; name: string; amount: string; dayOfMonth: string;
   intervalMonths: number; startMonth: string; paidBy: RecurringItem['paidBy'];
+  endMonth: string; variableAmount: boolean; installmentKey: string | null;
 };
 
 const intervals = [1, 2, 3, 6, 12];
@@ -30,7 +31,7 @@ export default function Recurring() {
   }, [household.id, month]);
   useEffect(reload, [reload]);
 
-  const blank = (kind: RecurringItem['kind']): Editing => ({ kind, name: '', amount: '', dayOfMonth: '1', intervalMonths: 1, startMonth: month, paidBy: 'bank' });
+  const blank = (kind: RecurringItem['kind']): Editing => ({ kind, name: '', amount: '', dayOfMonth: '1', intervalMonths: 1, startMonth: month, paidBy: 'bank', endMonth: '', variableAmount: false, installmentKey: null });
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -48,6 +49,7 @@ export default function Recurring() {
         id: editing.id, kind: editing.kind, name: editing.name.trim(), amount, dayOfMonth: day,
         intervalMonths: editing.intervalMonths, startMonth: editing.startMonth, active: true,
         paidBy: editing.kind === 'income' ? 'bank' : editing.paidBy,
+        endMonth: editing.endMonth || null, variableAmount: editing.variableAmount, installmentKey: editing.installmentKey,
       });
       setEditing(null);
       setError(null);
@@ -83,7 +85,7 @@ export default function Recurring() {
             <button
               type="button"
               className="link-button"
-              onClick={() => setEditing({ id: r.id, kind: r.kind, name: r.name, amount: String(r.amount / 100), dayOfMonth: String(r.dayOfMonth), intervalMonths: r.intervalMonths, startMonth: r.startMonth, paidBy: r.paidBy })}
+              onClick={() => setEditing({ id: r.id, kind: r.kind, name: r.name, amount: String(r.amount / 100), dayOfMonth: String(r.dayOfMonth), intervalMonths: r.intervalMonths, startMonth: r.startMonth, paidBy: r.paidBy, endMonth: r.endMonth ?? '', variableAmount: r.variableAmount, installmentKey: r.installmentKey })}
             >
               {r.name}
               <span className="muted">{` · ${intervalText(r.intervalMonths)}${r.kind === 'fixed' ? ` · ${r.paidBy === 'card' ? 'אשראי' : 'בנק'}` : ''}`}</span>

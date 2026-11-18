@@ -9,6 +9,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // precache the self-hosted font files too, so Rubik loads offline
+      workbox: { globPatterns: ['**/*.{js,css,html,woff2}'] },
       manifest: {
         name: 'Balance',
         short_name: 'Balance',
@@ -16,8 +18,8 @@ export default defineConfig({
         dir: 'rtl',
         display: 'standalone',
         start_url: '.',
-        background_color: '#ffffff',
-        theme_color: '#1d1d1f',
+        background_color: '#ece9e2',
+        theme_color: '#ece9e2',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

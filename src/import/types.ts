@@ -16,8 +16,8 @@ export interface ImportedRow {
   cardLast4: string | null;
   /** Leumi's category text. */
   categoryHint: string | null;
-  /** purchaseDate: the original purchase, before the installment's month shift. */
-  installment: { index: number; count: number; purchaseDate: ISODate } | null;
+  /** purchaseDate: the original purchase, before the installment's month shift; total: the whole purchase. */
+  installment: { index: number; count: number; purchaseDate: ISODate; total: Agorot } | null;
   /** From the "approved, not yet charged" sheet. */
   pending: boolean;
   /** card:<last4>:<date>:<amount>:<merchant>:<installmentIndex|0>#<n>; never includes sheet or status. */

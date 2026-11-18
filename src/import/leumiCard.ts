@@ -82,7 +82,10 @@ export function parseLeumiCard(sheets: Sheet[]): CardFile {
       const amount = (pending ? null : cellAgorot(cell(r, COL.charged))) ?? cellAgorot(cell(r, COL.original));
       if (amount === null) continue;
       const inst = /תשלום\s+(\d+)\s+מתוך\s+(\d+)/.exec(text(cell(r, COL.notes)));
-      const installment = inst ? { index: Number(inst[1]), count: Number(inst[2]), purchaseDate: purchase } : null;
+      const count = inst ? Number(inst[2]) : 0;
+      const installment = inst
+        ? { index: Number(inst[1]), count, purchaseDate: purchase, total: cellAgorot(cell(r, COL.original)) ?? amount * count }
+        : null;
       const last4 = text(cell(r, COL.last4)) || null;
       rows.push({
         date: installment ? shiftMonths(purchase, installment.index - 1) : purchase,

@@ -10,8 +10,27 @@ import { parseLeumiCard } from '../../import/leumiCard';
 import { parseLeumiChecking } from '../../import/leumiChecking';
 import { planCardImport, planCheckingImport, type ImportPlan } from '../../import/plan';
 import { readWorkbook } from '../../import/sheets';
+import type { CardFile } from '../../import/types';
 import { monthName, shortDate } from '../format';
 import { useHousehold } from '../household';
+
+/**
+ * Installment purchases become fixed items before the file is planned. A failure here (a network error, the
+ * database not updated yet) is reported on its own line and the import goes on without them.
+ */
+export async function addInstallmentItems(
+  file: CardFile, items: RecurringItem[], upsert: (drafts: Omit<RecurringItem, 'id'>[]) => Promise<number>,
+  reload: () => Promise<RecurringItem[]>,
+): Promise<{ items: RecurringItem[]; line: string | null }> {
+  const drafts = installmentDrafts(file, items);
+  if (drafts.length === 0) return { items, line: null };
+  try {
+    const added = await upsert(drafts);
+    return { items: await reload(), line: added ? `נוספו ${added} עסקאות בתשלומים לקבועות` : null };
+  } catch {
+    return { items, line: 'לא הצלחנו להוסיף את העסקאות בתשלומים לקבועות' };
+  }
+}
 
 export function summaryLine(label: string, s: ImportPlan['summary']): string {
   return `${label}: התאמנו ${s.matched}, נוספו ${s.added}, ${s.review} לבדיקה`;
@@ -56,12 +75,11 @@ export default function CloseMonth() {
         const file = parseLeumiCard(sheets);
         const r = range(file.rows.map((x) => x.date));
         const existing = r ? await loadForImport(household.id, r[0], r[1]) : [];
-        const drafts = installmentDrafts(file, items.current);
-        if (drafts.length) {
-          const added = await upsertInstallmentItems(household.id, drafts);
-          items.current = (await loadMonth(household.id, month)).recurring;
-          if (added) extra.push(`נוספו ${added} עסקאות בתשלומים לקבועות`);
-        }
+        const inst = await addInstallmentItems(
+          file, items.current, (d) => upsertInstallmentItems(household.id, d), async () => (await loadMonth(household.id, month)).recurring,
+        );
+        items.current = inst.items;
+        if (inst.line) extra.push(inst.line);
         plan = planCardImport(file, existing, data.categories, household.id, userId, items.current, rules.current);
         label = file.cardLast4;
         extra.push(`סה"כ חיוב בקובץ: ${formatShekels(file.chargedTotal)}`);

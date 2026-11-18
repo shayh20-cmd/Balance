@@ -61,11 +61,25 @@ export function planCardImport(
   const byKey = new Map(existing.filter((t) => t.importKey).map((t) => [t.importKey!, t]));
   const plan = emptyPlan();
 
-  for (const r of file.rows) {
-    const t = byKey.get(r.importKey);
-    if (!t) continue;
-    if (t.status === 'pending' && !r.pending) {
-      plan.updates.push({ id: t.id, patch: { status: 'confirmed' } });
+  // Rows imported before: confirm a pending one, and link it to a card item that didn't exist then (an
+  // installment purchase becomes an item on a later upload; its row must not stay variable).
+  const cardItems = items.filter((i) => i.paidBy === 'card');
+  const before = file.rows.filter((r) => byKey.has(r.importKey));
+  const relinked = links(
+    before.filter((r) => !byKey.get(r.importKey)!.recurringItemId).map((r) => ({
+      date: r.date, amount: r.amount, kind: 'expense' as const, isCardSettlement: false, importKey: r.importKey,
+    })),
+    cardItems, existing.filter((t) => !t.importKey || !before.some((r) => r.importKey === t.importKey)),
+  );
+  for (const r of before) {
+    const t = byKey.get(r.importKey)!;
+    const l = relinked.get(r.importKey);
+    const patch: Partial<TxnRowPatch> = {
+      ...(t.status === 'pending' && !r.pending ? { status: 'confirmed' as const } : {}),
+      ...(l ? { recurring_item_id: l.itemId, ...(l.uncertain ? { needs_review: true } : {}) } : {}),
+    };
+    if (Object.keys(patch).length) {
+      plan.updates.push({ id: t.id, patch });
       plan.summary.matched++;
     } else {
       plan.summary.skipped++;
@@ -76,7 +90,7 @@ export function planCardImport(
   const linkable = [...m.matched.map((x) => x.row), ...m.unmatched].map((r) => ({
     date: r.date, amount: r.amount, kind: 'expense' as const, isCardSettlement: false, importKey: r.importKey,
   }));
-  const linked = links(linkable, items.filter((i) => i.paidBy === 'card'), existing);
+  const linked = links(linkable, cardItems, existing);
 
   const byId = new Map(existing.map((t) => [t.id, t]));
   for (const { txnId, row, uncertain } of m.matched) {

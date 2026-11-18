@@ -12,6 +12,9 @@ const MAP: Record<string, string> = {
   'מוצרי חשמל': 'קניות',
   'עיצוב הבית': 'בית',
   'ביטוח': 'בית',
+  'עירייה וממשלה': 'בית',
+  'שירותי תקשורת': 'בית',
+  'קוסמטיקה וטיפוח': 'קניות',
 };
 
 export function leumiCategoryToOurs(leumi: string | null): string {

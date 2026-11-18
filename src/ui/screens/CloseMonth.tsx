@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { applyPlan, closeMonth, loadForImport } from '../../data/importRepo';
+import { applyPlan, closeMonth, loadForImport, monthCloses, reopenMonth } from '../../data/importRepo';
 import { loadCategoryRules, loadMonth, upsertInstallmentItems, type CategoryRule, type MonthData } from '../../data/repo';
 import { addDays } from '../../engine/dates';
 import { formatShekels } from '../../engine/money';
@@ -32,6 +32,16 @@ export async function addInstallmentItems(
   }
 }
 
+/** Shown on a month already closed: files can still be added and transactions fixed, or the close undone. */
+export function ClosedNotice({ month, onReopen }: { month: string; onReopen: () => void }) {
+  return (
+    <section className="card reminder">
+      <div>{`החודש ${monthName(month)} סגור. אפשר עדיין להעלות קבצים ולתקן עסקאות.`}</div>
+      <button type="button" onClick={onReopen}>פתיחת החודש מחדש</button>
+    </section>
+  );
+}
+
 export function summaryLine(label: string, s: ImportPlan['summary']): string {
   return `${label}: התאמנו ${s.matched}, נוספו ${s.added}, ${s.review} לבדיקה`;
 }
@@ -52,12 +62,14 @@ export default function CloseMonth() {
   const [review, setReview] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [closed, setClosed] = useState(false);
   const valid = /^\d{4}-\d{2}$/.test(month);
   // Items change during an upload (installment purchases are added), and files are handled one after another.
   const items = useRef<RecurringItem[]>([]);
   const rules = useRef<CategoryRule[]>([]);
 
   useEffect(() => {
+    if (valid) monthCloses(household.id).then((ms) => setClosed(ms.includes(month)), () => setClosed(false));
     if (valid) loadCategoryRules(household.id).then((r) => { rules.current = r; }, () => {});
     if (valid) loadMonth(household.id, month).then((d) => { items.current = d.recurring; setData(d); }, () => setError('לא הצלחנו לטעון את הנתונים. נסו לרענן.'));
   }, [household.id, month, valid]);
@@ -113,6 +125,17 @@ export default function CloseMonth() {
     setBusy(false);
   }
 
+  async function onReopen() {
+    setBusy(true);
+    try {
+      await reopenMonth(household.id, month);
+      setClosed(false);
+    } catch {
+      setError('לא הצלחנו לפתוח את החודש מחדש. נסו שוב.');
+    }
+    setBusy(false);
+  }
+
   async function onClose() {
     setBusy(true);
     try {
@@ -127,6 +150,7 @@ export default function CloseMonth() {
   return (
     <div className="form">
       <h1>{`סגירת חודש ${monthName(month)} ${month.slice(0, 4)}`}</h1>
+      {closed && <ClosedNotice month={month} onReopen={onReopen} />}
       <p className="muted">
         מורידים מאתר לאומי את קובץ האקסל של תנועות העו"ש ואת פירוט החיובים של כל כרטיס, ומעלים אותם כאן. עסקאות שכבר
         נקלטו מהטלפון לא יוכפלו, ואפשר להעלות את אותו קובץ שוב בלי חשש.
@@ -149,7 +173,9 @@ export default function CloseMonth() {
           {review > 0 && <Link to="/review">{`${review} לבדיקה`}</Link>}
         </section>
       )}
-      <button type="button" disabled={busy} onClick={onClose}>סגירת החודש</button>
+      <Link to={`/tx?m=${month}`}>לעסקאות של החודש</Link>
+      <Link to="/close">לכל החודשים</Link>
+      {!closed && <button type="button" disabled={busy} onClick={onClose}>סגירת החודש</button>}
     </div>
   );
 }

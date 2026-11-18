@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect, useState, type FormEvent } from 'react';
 import { createInvite, loadMonth, setBankBalance, type MonthData } from '../../data/repo';
 import { supabase } from '../../data/supabase';
@@ -63,6 +64,11 @@ export default function Settings() {
   return (
     <>
       <h1>הגדרות</h1>
+      <section className="card">
+        <h2>סגירות חודש</h2>
+        <p className="muted">העלאת קבצים מלאומי לכל חודש, טעינה חוזרת ובדיקה.</p>
+        <Link to="/close">לכל החודשים</Link>
+      </section>
       {error && <p className="error" role="alert">{error}</p>}
 
       <section className="card">

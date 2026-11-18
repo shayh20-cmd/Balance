@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { loadMonth, type MonthData } from '../../data/repo';
 import { addMonths, monthOf, todayInIsrael } from '../../engine/dates';
 import type { Source } from '../../engine/types';
@@ -19,7 +19,9 @@ const sources: { value: Source; label: string }[] = [
 
 export default function Transactions() {
   const { household } = useHousehold();
-  const [month, setMonth] = useState(monthOf(todayInIsrael()));
+  const [params] = useSearchParams();
+  const asked = params.get('m');
+  const [month, setMonth] = useState(asked && /^\d{4}-\d{2}$/.test(asked) ? asked : monthOf(todayInIsrael()));
   const [data, setData] = useState<MonthData | null>(null);
   const [error, setError] = useState(false);
   const [category, setCategory] = useState('');
@@ -47,6 +49,7 @@ export default function Transactions() {
         <h1>{`${monthName(month)} ${month.slice(0, 4)}`}</h1>
         <button type="button" aria-label="החודש הבא" onClick={() => setMonth(addMonths(month, 1))}>‹</button>
       </div>
+      <Link to={`/close/${month}`} className="review-link">{`סגירת חודש ${monthName(month)}: העלאת קבצים ועריכה`}</Link>
       {data && (
         <div className="filters">
           <select aria-label="קטגוריה" value={category} onChange={(e) => setCategory(e.target.value)}>

@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import AddTransaction from './screens/AddTransaction';
 import CloseMonth from './screens/CloseMonth';
+import CloseMonths from './screens/CloseMonths';
 import Funds from './screens/Funds';
 import Home from './screens/Home';
 import Recurring from './screens/Recurring';
@@ -27,6 +28,7 @@ export default function AppRoutes() {
         <Route path="/recurring" element={<Recurring />} />
         <Route path="/funds" element={<Funds />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/close" element={<CloseMonths />} />
         <Route path="/close/:month" element={<CloseMonth />} />
         <Route path="/review" element={<Review />} />
         <Route path="*" element={<Navigate to="/" replace />} />

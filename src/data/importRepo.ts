@@ -50,6 +50,33 @@ export async function closeMonth(householdId: string, month: Month): Promise<voi
   check(await supabase.from('month_closes').upsert({ household_id: householdId, month: `${month}-01`, closed_by: uid }));
 }
 
+export interface ImportCount { label: string; count: number }
+
+/** Rows that came from files, per month: which card (by last 4) or the checking account, and how many. */
+export function summarizeImports(rows: { date: string; card_last4: string | null; import_key: string }[]): Record<Month, ImportCount[]> {
+  const out: Record<Month, ImportCount[]> = {};
+  for (const r of rows) {
+    const m = r.date.slice(0, 7);
+    const label = r.import_key.startsWith('bank:') ? 'עו"ש' : r.card_last4 ?? 'כרטיס';
+    const list = (out[m] ??= []);
+    const hit = list.find((x) => x.label === label);
+    if (hit) hit.count++;
+    else list.push({ label, count: 1 });
+  }
+  return out;
+}
+
+export async function loadImports(householdId: string, from: ISODate): Promise<Record<Month, ImportCount[]>> {
+  const rows = check(await supabase.from('transactions').select('date, card_last4, import_key').eq('household_id', householdId)
+    .not('import_key', 'is', null).gte('date', from)) as { date: string; card_last4: string | null; import_key: string }[];
+  return summarizeImports(rows);
+}
+
+/** Undoes a close: the month counts as open again and the reminder comes back. */
+export async function reopenMonth(householdId: string, month: Month): Promise<void> {
+  check(await supabase.from('month_closes').delete().eq('household_id', householdId).eq('month', `${month}-01`));
+}
+
 export async function reviewItems(householdId: string): Promise<{ txns: Txn[]; inbox: InboxItem[] }> {
   const [txns, inbox] = await Promise.all([
     supabase.from('transactions').select('*').eq('household_id', householdId).eq('needs_review', true).order('date'),

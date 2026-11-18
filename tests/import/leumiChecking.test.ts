@@ -44,6 +44,7 @@ test('card settlement rows are flagged', () => {
 
 test('salary 22,304 links to the 20,700 salary item; rent cheque 8,400 links to rent', () => {
   const links = linkRecurring(file.rows, items, '2026-11');
+  expect(links.every((l) => !l.uncertain)).toBe(true);
   const linked = Object.fromEntries(links.map((l) => [l.itemId, file.rows.find((r) => r.importKey === l.rowKey)!.description]));
   expect(linked).toEqual({
     salary: 'משכורת-חברה בע"מ', rentIn: 'בנק הפועלים', rent: 'שיק', gan: 'הגנינה בע"מ-י', vaad: 'ועד הבית',
@@ -54,12 +55,17 @@ const row = (p: Partial<CheckingRow> & Pick<CheckingRow, 'amount' | 'importKey'>
   date: '2026-11-02', description: 'x', kind: 'income', isCardSettlement: false, ...p,
 });
 
-test('a row 30% off the expected amount does not link', () => {
-  expect(linkRecurring([row({ amount: 2691000, importKey: 'a' })], [items[0]], '2026-11')).toEqual([]);
+test('a row 30% off the expected amount links only as uncertain', () => {
+  expect(linkRecurring([row({ amount: 2691000, importKey: 'a' })], [items[0]], '2026-11')).toEqual([{ rowKey: 'a', itemId: 'salary', uncertain: true }]);
 });
 
-test('a row more than 6 days from the due day does not link', () => {
-  expect(linkRecurring([row({ amount: 2070000, importKey: 'a', date: '2026-11-12' })], [items[0]], '2026-11')).toEqual([]);
+test('a row 60% off the expected amount does not link', () => {
+  expect(linkRecurring([row({ amount: 3312000, importKey: 'a' })], [items[0]], '2026-11')).toEqual([]);
+});
+
+test('a row 10 days from the due day links only as uncertain; 13 days does not link', () => {
+  expect(linkRecurring([row({ amount: 2070000, importKey: 'a', date: '2026-11-12' })], [items[0]], '2026-11')).toEqual([{ rowKey: 'a', itemId: 'salary', uncertain: true }]);
+  expect(linkRecurring([row({ amount: 2070000, importKey: 'a', date: '2026-11-15' })], [items[0]], '2026-11')).toEqual([]);
 });
 
 test('each row links to at most one item', () => {

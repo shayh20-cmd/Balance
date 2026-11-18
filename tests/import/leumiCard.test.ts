@@ -59,6 +59,14 @@ test('keys ignore pending status', () => {
   expect(pending.rows[0].importKey).toBe(charged.rows[0].importKey);
 });
 
+test('a pending row in a foreign currency is left for the charged sheet', () => {
+  const f = parseLeumiCard([sheet('עסקאות שאושרו וטרם נקלטו', [
+    ['17-11-2026', 'AMAZON', 'קניות', '1111', 'רגילה', null, null, 20, '$'],
+    ['17-11-2026', 'ג', 'מזון וצריכה', '1111', 'רגילה', null, null, 41.64, '₪'],
+  ])]);
+  expect(f.rows.map((r) => r.merchant)).toEqual(['ג']);
+});
+
 test('a non-Leumi workbook throws not_leumi_card', () => {
   expect(() => parseLeumiCard([{ name: 'Sheet1', rows: [['a', 'b'], [1, 2]] }])).toThrow('not_leumi_card');
 });

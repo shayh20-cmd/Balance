@@ -10,6 +10,7 @@ const COL = {
   last4: '4 ספרות אחרונות של כרטיס האשראי',
   charged: 'סכום חיוב',
   original: 'סכום עסקה מקורי',
+  currency: 'מטבע עסקה מקורי',
   notes: 'הערות',
 } as const;
 const TOTAL = 'סך הכל';
@@ -74,6 +75,10 @@ export function parseLeumiCard(sheets: Sheet[]): CardFile {
       const r = s.rows[i];
       const purchase = cellDate(cell(r, COL.date));
       if (!purchase) break;
+      // A pending row only has the original amount; in a foreign currency it isn't shekels yet. It comes in
+      // when it is charged.
+      const currency = text(cell(r, COL.currency));
+      if (pending && currency && currency !== '₪') continue;
       const amount = (pending ? null : cellAgorot(cell(r, COL.charged))) ?? cellAgorot(cell(r, COL.original));
       if (amount === null) continue;
       const inst = /תשלום\s+(\d+)\s+מתוך\s+(\d+)/.exec(text(cell(r, COL.notes)));

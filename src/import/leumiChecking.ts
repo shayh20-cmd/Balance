@@ -70,32 +70,49 @@ export function parseLeumiChecking(sheets: Sheet[]): CheckingFile {
   throw new Error('not_leumi_checking');
 }
 
+/** What linking needs from a row; card rows fit too. */
+export type LinkRow = Pick<CheckingRow, 'date' | 'amount' | 'kind' | 'isCardSettlement' | 'importKey'>;
+export interface Link { rowKey: string; itemId: string; uncertain: boolean }
+
 /**
- * Pairs each fixed item and income due in `month` with its bank row: same kind, within ±20% of the expected
- * amount and ±6 days of its day of month. Closest amounts pair first; each row and item links once.
+ * Pairs each fixed item and income due in `months` with its row, same kind. First a sure pass: within ±20% of
+ * the expected amount and ±6 days of its day of month, in that month. Then, for what is left, a wider pass
+ * (±50%, ±10 days, across the month edge) whose links are uncertain: a bonus month or a late cheque would
+ * otherwise count both the expected amount and the real row. Closest amounts pair first; each row and item
+ * links once. The caller filters items by who pays them (bank or card).
  */
-export function linkRecurring(rows: CheckingRow[], items: RecurringItem[], month: Month): { rowKey: string; itemId: string }[] {
-  const pairs: { rowKey: string; itemId: string; off: number }[] = [];
-  for (const it of items) {
-    if (!isDueInMonth(it, month)) continue;
-    const due = `${month}-${String(Math.min(it.dayOfMonth, daysInMonth(month))).padStart(2, '0')}`;
-    const kind = it.kind === 'income' ? 'income' : 'expense';
-    for (const r of rows) {
-      if (r.kind !== kind || r.isCardSettlement || monthOf(r.date) !== month) continue;
-      const off = Math.abs(r.amount - it.amount) / Math.max(it.amount, 1);
-      const days = Math.abs(daysBetweenInclusive(due, r.date) - 1);
-      if (off <= 0.2 && days <= 6) pairs.push({ rowKey: r.importKey, itemId: it.id, off });
-    }
-  }
-  pairs.sort((a, b) => a.off - b.off);
+export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: Month | Month[]): Link[] {
+  const ms = Array.isArray(months) ? months : [months];
   const usedRows = new Set<string>();
   const usedItems = new Set<string>();
-  const out: { rowKey: string; itemId: string }[] = [];
-  for (const p of pairs) {
-    if (usedRows.has(p.rowKey) || usedItems.has(p.itemId)) continue;
-    usedRows.add(p.rowKey);
-    usedItems.add(p.itemId);
-    out.push({ rowKey: p.rowKey, itemId: p.itemId });
-  }
+  const out: Link[] = [];
+
+  const pass = (maxOff: number, maxDays: number, sameMonth: boolean, uncertain: boolean) => {
+    const pairs: { rowKey: string; itemKey: string; itemId: string; off: number }[] = [];
+    for (const month of ms) {
+      for (const it of items) {
+        const itemKey = `${it.id}@${month}`;
+        if (usedItems.has(itemKey) || !isDueInMonth(it, month)) continue;
+        const due = `${month}-${String(Math.min(it.dayOfMonth, daysInMonth(month))).padStart(2, '0')}`;
+        const kind = it.kind === 'income' ? 'income' : 'expense';
+        for (const r of rows) {
+          if (usedRows.has(r.importKey) || r.kind !== kind || r.isCardSettlement) continue;
+          if (sameMonth && monthOf(r.date) !== month) continue;
+          const off = Math.abs(r.amount - it.amount) / Math.max(it.amount, 1);
+          const days = Math.abs(daysBetweenInclusive(due, r.date) - 1);
+          if (off <= maxOff && days <= maxDays) pairs.push({ rowKey: r.importKey, itemKey, itemId: it.id, off });
+        }
+      }
+    }
+    pairs.sort((a, b) => a.off - b.off);
+    for (const p of pairs) {
+      if (usedRows.has(p.rowKey) || usedItems.has(p.itemKey)) continue;
+      usedRows.add(p.rowKey);
+      usedItems.add(p.itemKey);
+      out.push({ rowKey: p.rowKey, itemId: p.itemId, uncertain });
+    }
+  };
+  pass(0.2, 6, true, false);
+  pass(0.5, 10, false, true);
   return out;
 }

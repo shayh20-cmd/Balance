@@ -77,12 +77,29 @@ test('a category the household renamed resolves to null', () => {
   expect(plan.inserts.find((r) => r.merchant === 'ליברה ביטוח חובה')!.category_id).toBeNull();
 });
 
-test('ambiguous rows are inserted for review', () => {
+test('an uncertain match merges into a captured txn and flags it, instead of inserting a copy', () => {
   const a = txn({ date: '2026-11-01', amount: 5713 });
   const b = txn({ date: '2026-11-01', amount: 5713 });
   const plan = planCardImport(card, [a, b], categories, 'h1', 'u1');
-  expect(plan.summary).toMatchObject({ matched: 0, added: 7, review: 1 });
-  expect(plan.inserts.find((r) => r.merchant === 'שומשום קונקורד')!.needs_review).toBe(true);
+  expect(plan.summary).toMatchObject({ matched: 1, added: 6, review: 1 });
+  expect(plan.inserts.find((r) => r.merchant === 'שומשום קונקורד')).toBeUndefined();
+  expect(plan.updates.find((u) => u.id === a.id)!.patch).toMatchObject({ needs_review: true, merchant: 'שומשום קונקורד' });
+});
+
+test('card rows link to card-paid fixed items', () => {
+  const insurance = item({ id: 'ins', kind: 'fixed', amount: 12200, dayOfMonth: 22, paidBy: 'card' });
+  const plan = planCardImport(card, [], categories, 'h1', 'u1', [insurance]);
+  expect(plan.inserts.find((r) => r.merchant === 'ליברה ביטוח חובה')!.recurring_item_id).toBe('ins');
+  expect(plan.inserts.find((r) => r.merchant === 'שומשום קונקורד')!.recurring_item_id).toBeNull();
+});
+
+test('a pending captured txn on this card that the file does not have is flagged', () => {
+  const lost = txn({ date: '2026-11-04', amount: 99900, cardLast4: '1111', status: 'pending', source: 'google_wallet' });
+  const otherCard = txn({ date: '2026-11-04', amount: 99900, cardLast4: '2222', status: 'pending', source: 'google_wallet' });
+  const plan = planCardImport(card, [lost, otherCard], categories, 'h1', 'u1');
+  expect(plan.updates).toContainEqual({ id: lost.id, patch: { needs_review: true } });
+  expect(plan.updates.find((u) => u.id === otherCard.id)).toBeUndefined();
+  expect(plan.summary.review).toBe(1);
 });
 
 const HEAD = ['תאריך עסקה', 'שם בית העסק', 'קטגוריה', '4 ספרות אחרונות של כרטיס האשראי', 'סוג עסקה', 'סכום חיוב', 'מטבע חיוב', 'סכום עסקה מקורי', 'מטבע עסקה מקורי'];
@@ -129,10 +146,39 @@ test('checking import: card settlements are inserted flagged, fixed items linked
   expect(again.summary.skipped).toBe(7);
 });
 
+test('checking row matches a hand-entered txn instead of adding a copy', async () => {
+  const file = parseLeumiChecking(await read('leumi-checking.xlsx'));
+  const fee = txn({ date: '2026-11-01', amount: 1000, merchant: 'עמלה' });
+  const plan = planCheckingImport(file, [fee], [], 'h1', 'u1');
+  expect(plan.inserts.find((r) => r.merchant === 'עמלת פעולה')).toBeUndefined();
+  expect(plan.updates).toEqual([{ id: fee.id, patch: { date: '2026-11-01', status: 'confirmed', import_key: 'bank:2026-11-01:expense:1000:עמלת פעולה#1' } }]);
+  expect(plan.summary).toMatchObject({ matched: 1, added: 6 });
+});
+
+test('salary 25% above expected still links, for review', async () => {
+  const file = parseLeumiChecking(await read('leumi-checking.xlsx'));
+  const salary = item({ id: 'salary', kind: 'income', amount: 1780000, dayOfMonth: 2 });
+  const ins = planCheckingImport(file, [], [salary], 'h1', 'u1').inserts.find((r) => r.kind === 'income' && r.amount_agorot === 2230400)!;
+  expect(ins).toMatchObject({ recurring_item_id: 'salary', needs_review: true });
+});
+
+test('a salary paid on the 30th links to the next month item, for review', () => {
+  const salary = item({ id: 'salary', kind: 'income', amount: 2070000, dayOfMonth: 1, startMonth: '2026-11' });
+  const file = { balance: null, rows: [{ date: '2026-10-30', description: 'משכורת', amount: 2070000, kind: 'income' as const, isCardSettlement: false, importKey: 's#1' }] };
+  const plan = planCheckingImport(file, [], [salary], 'h1', 'u1');
+  expect(plan.inserts[0]).toMatchObject({ recurring_item_id: 'salary', needs_review: true });
+});
+
+test('a card-paid item never links to a bank row', () => {
+  const netflix = item({ id: 'nf', kind: 'fixed', amount: 1000, dayOfMonth: 1, paidBy: 'card' });
+  const file = { balance: null, rows: [{ date: '2026-11-01', description: 'עמלה', amount: 1000, kind: 'expense' as const, isCardSettlement: false, importKey: 'f#1' }] };
+  expect(planCheckingImport(file, [], [netflix], 'h1', 'u1').inserts[0].recurring_item_id).toBeNull();
+});
+
 test('a row for an item already paid this month is linked but sent to review', async () => {
   const file = parseLeumiChecking(await read('leumi-checking.xlsx'));
   const rent = item({ id: 'rent', kind: 'fixed', amount: 840000, dayOfMonth: 3 });
-  const manual = txn({ date: '2026-11-03', amount: 840000, recurringItemId: 'rent' });
+  const manual = txn({ date: '2026-11-03', amount: 800000, recurringItemId: 'rent' });
   const plan = planCheckingImport(file, [manual], [rent], 'h1', 'u1');
   expect(plan.inserts.find((r) => r.merchant === 'שיק')!).toMatchObject({ recurring_item_id: 'rent', needs_review: true });
   expect(plan.summary).toMatchObject({ matched: 0, review: 1 });

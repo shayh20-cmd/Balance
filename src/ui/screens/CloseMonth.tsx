@@ -51,7 +51,7 @@ export default function CloseMonth() {
         const file = parseLeumiCard(sheets);
         const r = range(file.rows.map((x) => x.date));
         const existing = r ? await loadForImport(household.id, r[0], r[1]) : [];
-        plan = planCardImport(file, existing, data.categories, household.id, userId);
+        plan = planCardImport(file, existing, data.categories, household.id, userId, data.recurring);
         label = file.cardLast4;
         extra.push(`סה"כ חיוב בקובץ: ${formatShekels(file.chargedTotal)}`);
       } else {

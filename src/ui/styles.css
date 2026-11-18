@@ -79,7 +79,8 @@ button:disabled { opacity: .5; }
 .copy-field input { flex: 1; min-width: 0; font-size: 13px; }
 .device-setup ol { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
 .reminder { display: flex; flex-direction: column; gap: 6px; border-inline-start: 6px solid var(--lime); }
-.review-link { display: block; margin-block-end: 12px; font-size: 14px; }
+a { color: var(--text); text-underline-offset: 3px; }
+.review-link { display: block; width: fit-content; margin-block-end: 12px; padding: 6px 14px; border-radius: 999px; background: var(--lime); color: var(--text); font-size: 14px; font-weight: 500; text-decoration: none; }
 .check { display: flex; align-items: center; gap: 8px; }
 
 /* ---- amounts ---- */

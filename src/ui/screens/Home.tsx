@@ -94,8 +94,8 @@ export default function Home() {
   useEffect(() => {
     // Extras: Home works without them.
     monthCloses(household.id).then(setClosed, () => setClosed(null));
-    reviewCount(household.id).then(setToReview, () => setToReview(0));
-  }, [household.id]);
+    reviewCount(household.id, today).then(setToReview, () => setToReview(0));
+  }, [household.id, today]);
 
   useEffect(() => {
     loadMonth(household.id, monthOf(today)).then(setData, () => setError(true));

@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { markReviewed, resolveInbox, reviewItems, type InboxItem } from '../../data/importRepo';
+import { loadSuggestions, markReviewed, resolveInbox, reviewItems, type InboxItem } from '../../data/importRepo';
+import { dismissRecurring, upsertRecurring } from '../../data/repo';
+import { monthOf, todayInIsrael } from '../../engine/dates';
+import type { RecurringSuggestion } from '../../engine/detect';
+import { formatShekels } from '../../engine/money';
 import type { Txn } from '../../engine/types';
 import Amount from '../components/Amount';
-import { shortDate } from '../format';
+import { monthName, shortDate } from '../format';
 import { useHousehold } from '../household';
 
 export default function Review() {
@@ -11,13 +15,39 @@ export default function Review() {
   const [txns, setTxns] = useState<Txn[] | null>(null);
   const [inbox, setInbox] = useState<InboxItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<RecurringSuggestion[]>([]);
+  const today = todayInIsrael();
 
   useEffect(() => {
     reviewItems(household.id).then(
       (r) => { setTxns(r.txns); setInbox(r.inbox); },
       () => setError('לא הצלחנו לטעון את הנתונים. נסו לרענן.'),
     );
-  }, [household.id]);
+    loadSuggestions(household.id, today).then(setSuggestions, () => setSuggestions([]));
+  }, [household.id, today]);
+
+  const drop = (key: string) => setSuggestions((xs) => xs.filter((x) => x.merchantKey !== key));
+
+  async function addItem(s: RecurringSuggestion) {
+    try {
+      await upsertRecurring(household.id, {
+        kind: s.kind, name: s.merchant, amount: s.amount, dayOfMonth: s.dayOfMonth, intervalMonths: 1,
+        startMonth: monthOf(today), active: true, paidBy: s.paidBy, endMonth: null, variableAmount: false, installmentKey: null,
+      });
+      drop(s.merchantKey);
+    } catch {
+      setError('לא הצלחנו לשמור. נסו שוב.');
+    }
+  }
+
+  async function notRecurring(s: RecurringSuggestion) {
+    try {
+      await dismissRecurring(household.id, s.merchantKey);
+      drop(s.merchantKey);
+    } catch {
+      setError('לא הצלחנו לשמור. נסו שוב.');
+    }
+  }
 
   async function ok(id: string) {
     try {
@@ -43,7 +73,24 @@ export default function Review() {
     <>
       <h1>לבדיקה</h1>
       {error && <p className="error">{error}</p>}
-      {txns.length === 0 && inbox.length === 0 && <p className="muted">אין מה לבדוק</p>}
+      {txns.length === 0 && inbox.length === 0 && suggestions.length === 0 && <p className="muted">אין מה לבדוק</p>}
+      {suggestions.length > 0 && (
+        <section className="card">
+          <h2>אולי זה קבוע?</h2>
+          {suggestions.map((s) => (
+            <div key={s.merchantKey} className="row">
+              <span>
+                {s.merchant}
+                <span className="muted">{` ${formatShekels(s.amount)} · הופיע ב${s.months.map(monthName).join(', ')}`}</span>
+              </span>
+              <span className="actions-inline">
+                <button type="button" onClick={() => addItem(s)}>הוספה כפריט קבוע</button>
+                <button type="button" onClick={() => notRecurring(s)}>לא קבוע</button>
+              </span>
+            </div>
+          ))}
+        </section>
+      )}
       {txns.length > 0 && (
         <section className="card">
           <h2>עסקאות שלא היה ברור איך להתאים</h2>

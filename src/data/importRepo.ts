@@ -1,7 +1,9 @@
+import { addMonths, monthOf } from '../engine/dates';
+import { detectRecurring, type RecurringSuggestion } from '../engine/detect';
 import type { ISODate, Month, Txn } from '../engine/types';
 import type { ImportPlan } from '../import/plan';
-import { rowToTxn, type TxnRow } from './mappers';
-import { currentUserId } from './repo';
+import { rowToRecurring, rowToTxn, type RecurringRow, type TxnRow } from './mappers';
+import { currentUserId, loadDismissals, loadRecentTxns } from './repo';
 import { supabase } from './supabase';
 
 export interface InboxItem { id: string; title: string; body: string; createdAt: string }
@@ -61,15 +63,26 @@ export async function reviewItems(householdId: string): Promise<{ txns: Txn[]; i
   };
 }
 
+/** Merchants that look recurring over the last 4 full months (§7.4). */
+export async function loadSuggestions(householdId: string, today: ISODate): Promise<RecurringSuggestion[]> {
+  const [txns, dismissed, items] = await Promise.all([
+    loadRecentTxns(householdId, `${addMonths(monthOf(today), -4)}-01`),
+    loadDismissals(householdId),
+    supabase.from('recurring_items').select('*').eq('household_id', householdId),
+  ]);
+  return detectRecurring(txns, (check(items) as RecurringRow[]).map(rowToRecurring), dismissed, today);
+}
+
 /** How many things wait in the review screen. */
-export async function reviewCount(householdId: string): Promise<number> {
+export async function reviewCount(householdId: string, today: ISODate): Promise<number> {
+  const suggestions = loadSuggestions(householdId, today).then((s) => s.length, () => 0);
   const [t, i] = await Promise.all([
     supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('household_id', householdId).eq('needs_review', true),
     supabase.from('ingest_inbox').select('id', { count: 'exact', head: true }).eq('household_id', householdId).is('resolved_at', null),
   ]);
   if (t.error) throw new Error(t.error.message);
   if (i.error) throw new Error(i.error.message);
-  return (t.count ?? 0) + (i.count ?? 0);
+  return (t.count ?? 0) + (i.count ?? 0) + (await suggestions);
 }
 
 export async function resolveInbox(id: string): Promise<void> {

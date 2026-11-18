@@ -3,8 +3,9 @@ import { deleteRecurring, loadMonth, upsertRecurring, type MonthData } from '../
 import { monthOf, todayInIsrael } from '../../engine/dates';
 import { toAgorot } from '../../engine/money';
 import type { RecurringItem } from '../../engine/types';
-import Amount from '../components/Amount';
+import { expectedAmount } from '../../engine/month';
 import ConfirmDialog from '../components/ConfirmDialog';
+import RecurringLine, { endMonthError } from '../components/RecurringLine';
 import { useHousehold } from '../household';
 import { useToast } from '../toast';
 
@@ -44,6 +45,8 @@ export default function Recurring() {
     }
     const day = Number(editing.dayOfMonth);
     if (!Number.isInteger(day) || day < 1 || day > 31) return setError('יום בחודש לא תקין');
+    const endError = endMonthError(editing.startMonth, editing.endMonth);
+    if (endError) return setError(endError);
     try {
       await upsertRecurring(household.id, {
         id: editing.id, kind: editing.kind, name: editing.name.trim(), amount, dayOfMonth: day,
@@ -81,20 +84,13 @@ export default function Recurring() {
       {data.recurring
         .filter((r) => r.kind === kind)
         .map((r) => (
-          <div key={r.id} className="row">
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => setEditing({ id: r.id, kind: r.kind, name: r.name, amount: String(r.amount / 100), dayOfMonth: String(r.dayOfMonth), intervalMonths: r.intervalMonths, startMonth: r.startMonth, paidBy: r.paidBy, endMonth: r.endMonth ?? '', variableAmount: r.variableAmount, installmentKey: r.installmentKey })}
-            >
-              {r.name}
-              <span className="muted">{` · ${intervalText(r.intervalMonths)}${r.kind === 'fixed' ? ` · ${r.paidBy === 'card' ? 'אשראי' : 'בנק'}` : ''}`}</span>
-            </button>
-            <span>
-              <Amount value={r.amount} />
-              <button type="button" className="danger" aria-label={`מחיקת ${r.name}`} onClick={() => setDeleting(r)}>✕</button>
-            </span>
-          </div>
+          <RecurringLine
+            key={r.id}
+            item={r}
+            expected={expectedAmount(r, data.history?.[r.id], month)}
+            onEdit={() => setEditing({ id: r.id, kind: r.kind, name: r.name, amount: String(r.amount / 100), dayOfMonth: String(r.dayOfMonth), intervalMonths: r.intervalMonths, startMonth: r.startMonth, paidBy: r.paidBy, endMonth: r.endMonth ?? '', variableAmount: r.variableAmount, installmentKey: r.installmentKey })}
+            onDelete={() => setDeleting(r)}
+          />
         ))}
       {!editing && (
         <button type="button" onClick={() => setEditing(blank(kind))}>{addLabel}</button>
@@ -110,6 +106,7 @@ export default function Recurring() {
       {editing && (
         <form className="card form" onSubmit={save}>
           <h2>{editing.kind === 'income' ? 'הכנסה' : 'הוצאה קבועה'}</h2>
+          {editing.kind === 'fixed' && <p className="muted">הלוואה או עסקה בתשלומים: הוצאה קבועה עם חודש אחרון</p>}
           <label>
             שם
             <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} required />
@@ -134,6 +131,15 @@ export default function Recurring() {
             מחודש
             <input type="month" value={editing.startMonth} onChange={(e) => setEditing({ ...editing, startMonth: e.target.value })} required />
           </label>
+          <label>
+            חודש אחרון (לא חובה)
+            <input type="month" value={editing.endMonth} onChange={(e) => setEditing({ ...editing, endMonth: e.target.value })} />
+          </label>
+          <label className="check">
+            <input type="checkbox" checked={editing.variableAmount} onChange={(e) => setEditing({ ...editing, variableAmount: e.target.checked })} />
+            הסכום משתנה מחודש לחודש
+          </label>
+          {editing.variableAmount && <p className="muted">הסכום הצפוי יחושב לפי ממוצע 3 החודשים האחרונים</p>}
           {editing.kind === 'fixed' && (
             <label>
               יורד מ

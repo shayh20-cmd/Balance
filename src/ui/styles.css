@@ -127,3 +127,9 @@ a.card:active, .tx:active, .fab:active, button:active:not(:disabled) { transform
   .home.intro .rise, .home.intro .bar > i { animation: none; }
   .card, button, .fab, .bar > i { transition: none; }
 }
+.home-top .month-nav h1 { margin: 0; }
+.home-top .month-nav button { background: transparent; font-size: 22px; padding: 4px 10px; }
+.sub-bar { display: block; padding-block: 10px 2px; border-block-start: 1px solid var(--line); margin-block-start: 10px; }
+.sub-bar .split span { font-size: 14px; }
+.detail-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding-block: 8px; border-block-end: 1px solid var(--line); font-size: 14px; }
+.detail-line .amounts { text-align: end; }

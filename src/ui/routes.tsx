@@ -4,6 +4,7 @@ import CloseMonth from './screens/CloseMonth';
 import CloseMonths from './screens/CloseMonths';
 import Funds from './screens/Funds';
 import Home from './screens/Home';
+import MonthDetail from './screens/MonthDetail';
 import Recurring from './screens/Recurring';
 import Review from './screens/Review';
 import Settings from './screens/Settings';
@@ -28,6 +29,7 @@ export default function AppRoutes() {
         <Route path="/recurring" element={<Recurring />} />
         <Route path="/funds" element={<Funds />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/month/:month/:kind" element={<MonthDetail />} />
         <Route path="/close" element={<CloseMonths />} />
         <Route path="/close/:month" element={<CloseMonth />} />
         <Route path="/review" element={<Review />} />

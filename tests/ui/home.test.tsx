@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import type { MonthSummary } from '../../src/engine/month';
 import type { WeekStatus } from '../../src/engine/week';
@@ -27,7 +29,7 @@ test('shows left-to-spend formatted, with the month and household', () => {
   renderHome();
   expect(screen.getByText('6,840 ₪')).toBeInTheDocument();
   expect(screen.getByText('מתוך 8,200 ₪ להוצאות משתנות')).toBeInTheDocument();
-  expect(screen.getByText('נובמבר')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'נובמבר 2026' })).toBeInTheDocument();
   expect(screen.getByText('בית כהן · 2 משתתפים')).toBeInTheDocument();
 });
 
@@ -98,4 +100,43 @@ test('ProgressBar clamps its ratio to [0, 1]', () => {
   expect((container.querySelector('i') as HTMLElement).style.width).toBe('100%');
   rerender(<ProgressBar value={5} max={0} />);
   expect((container.querySelector('i') as HTMLElement).style.width).toBe('100%');
+});
+
+const b = {
+  income: [], fixed: [], variable: [], received: 1500000, paidFixed: 600000,
+};
+
+test('arrows move between months', async () => {
+  const onPrev = vi.fn();
+  const onNext = vi.fn();
+  renderHome({ onPrev, onNext });
+  await userEvent.click(screen.getByRole('button', { name: 'החודש הקודם' }));
+  await userEvent.click(screen.getByRole('button', { name: 'החודש הבא' }));
+  expect(onPrev).toHaveBeenCalledTimes(1);
+  expect(onNext).toHaveBeenCalledTimes(1);
+});
+
+test('income card shows the month total and links to the income detail', () => {
+  renderHome({ breakdown: b });
+  const income = screen.getByRole('link', { name: /הכנסות/ });
+  expect(income).toHaveAttribute('href', '/month/2026-11/income');
+  expect(income).toHaveTextContent('21,500 ₪');
+  expect(income).toHaveTextContent('התקבלו 15,000 ₪');
+});
+
+test('expenses card shows the total and links to fixed and variable', () => {
+  renderHome({ breakdown: b });
+  expect(screen.getByText('הוצאות החודש')).toBeInTheDocument();
+  expect(screen.getByText('12,260 ₪')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /קבועות/ })).toHaveAttribute('href', '/month/2026-11/fixed');
+  expect(screen.getByRole('link', { name: /משתנות/ })).toHaveAttribute('href', '/month/2026-11/variable');
+  expect(screen.getByRole('link', { name: /קבועות/ })).toHaveTextContent('שולמו 6,000 ₪');
+});
+
+test('another month hides the week and says what the number means', () => {
+  renderHome({ week: null, current: 'past' });
+  expect(screen.queryByText(/השבוע/)).toBeNull();
+  expect(screen.getByText('נשאר בסוף החודש')).toBeInTheDocument();
+  renderHome({ week: null, current: 'future' });
+  expect(screen.getByText('צפוי להוצאות משתנות')).toBeInTheDocument();
 });

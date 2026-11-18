@@ -6,6 +6,7 @@ import {
   recurringToRow, rowToFund, rowToRecurring, rowToTxn, txnToRow,
   type FundEntryRow, type FundRow, type FundSpendRow, type RecurringRow, type TxnRow,
 } from './mappers';
+import { merchantKey } from '../engine/merchant';
 import { supabase } from './supabase';
 
 export interface Household { id: string; name: string; role: 'owner' | 'member'; displayName: string }
@@ -51,7 +52,7 @@ export async function acceptInvite(token: string, displayName: string): Promise<
 export async function loadMonth(householdId: string, month: Month): Promise<MonthData> {
   const from = `${month}-01`;
   const to = `${addMonths(month, 1)}-01`;
-  const [txns, recurring, funds, entries, categories, members, bank, fundSpend] = await Promise.all([
+  const [txns, recurring, funds, entries, categories, members, bank, fundSpend, linked] = await Promise.all([
     supabase.from('transactions').select('*').eq('household_id', householdId).gte('date', from).lt('date', to)
       .order('date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('recurring_items').select('*').eq('household_id', householdId).order('created_at'),
@@ -63,7 +64,16 @@ export async function loadMonth(householdId: string, month: Month): Promise<Mont
     // earlier spending from funds, so each fund's balance can be replayed
     supabase.from('transactions').select('fund_id, date, amount_agorot, kind').eq('household_id', householdId)
       .not('fund_id', 'is', null).lt('date', from),
+    // linked actuals of the last 6 months, for variable-amount items' expected amount
+    supabase.from('transactions').select('recurring_item_id, date, amount_agorot').eq('household_id', householdId)
+      .not('recurring_item_id', 'is', null).gte('date', `${addMonths(month, -6)}-01`).lt('date', from),
   ]);
+  const history: Record<string, Record<Month, Agorot>> = {};
+  for (const r of check(linked) as { recurring_item_id: string; date: string; amount_agorot: number }[]) {
+    const h = (history[r.recurring_item_id] ??= {});
+    const m = r.date.slice(0, 7);
+    h[m] = (h[m] ?? 0) + r.amount_agorot;
+  }
   const spendRows = check(fundSpend) as FundSpendRow[];
   const entryRows = check(entries) as FundEntryRow[];
   const bankRow = check(bank) as { amount_agorot: number; as_of: string } | null;
@@ -74,6 +84,7 @@ export async function loadMonth(householdId: string, month: Month): Promise<Mont
     recurring: (check(recurring) as RecurringRow[]).map(rowToRecurring),
     funds: (check(funds) as FundRow[]).map((r) => ({ ...rowToFund(r, entryRows, month, spendRows), annual: r.annual })),
     carryIn: 0,
+    history,
     categories: check(categories) as Category[],
     members: memberRows.map((m) => ({ userId: m.user_id, displayName: m.display_name, role: m.role })),
     bankBalance: bankRow ? { amount: bankRow.amount_agorot, asOf: bankRow.as_of } : null,
@@ -155,4 +166,45 @@ export async function revokeDevice(id: string): Promise<void> {
 
 export async function setBankBalance(householdId: string, amount: Agorot, asOf: ISODate): Promise<void> {
   check(await supabase.from('bank_balance').upsert({ household_id: householdId, amount_agorot: amount, as_of: asOf }));
+}
+
+export interface CategoryRule { merchantKey: string; categoryId: string }
+
+export async function loadCategoryRules(householdId: string): Promise<CategoryRule[]> {
+  const rows = check(await supabase.from('category_rules').select('merchant_key, category_id').eq('household_id', householdId)) as
+    { merchant_key: string; category_id: string }[];
+  return rows.map((r) => ({ merchantKey: r.merchant_key, categoryId: r.category_id }));
+}
+
+/** Remembers "this merchant → this category" for future imports. An empty key is skipped. */
+export async function saveCategoryRule(householdId: string, merchant: string, categoryId: string): Promise<void> {
+  const key = merchantKey(merchant);
+  if (!key) return;
+  check(await supabase.from('category_rules').upsert({
+    household_id: householdId, merchant_key: key, category_id: categoryId, updated_at: new Date().toISOString(),
+  }));
+}
+
+export async function loadDismissals(householdId: string): Promise<string[]> {
+  const rows = check(await supabase.from('recurring_dismissals').select('merchant_key').eq('household_id', householdId)) as { merchant_key: string }[];
+  return rows.map((r) => r.merchant_key);
+}
+
+export async function dismissRecurring(householdId: string, key: string): Promise<void> {
+  check(await supabase.from('recurring_dismissals').upsert({ household_id: householdId, merchant_key: key }));
+}
+
+/** Adds installment items, skipping any installment_key already present; returns how many were new. */
+export async function upsertInstallmentItems(householdId: string, drafts: Omit<RecurringItem, 'id'>[]): Promise<number> {
+  if (drafts.length === 0) return 0;
+  const rows = check(await supabase.from('recurring_items')
+    .upsert(drafts.map((d) => recurringToRow(d, householdId)), { onConflict: 'household_id,installment_key', ignoreDuplicates: true })
+    .select('id')) as { id: string }[] | null;
+  return rows?.length ?? 0;
+}
+
+/** Transactions since `from`, for spotting recurring merchants. */
+export async function loadRecentTxns(householdId: string, from: ISODate): Promise<Txn[]> {
+  const rows = check(await supabase.from('transactions').select('*').eq('household_id', householdId).gte('date', from));
+  return (rows as TxnRow[]).map(rowToTxn);
 }

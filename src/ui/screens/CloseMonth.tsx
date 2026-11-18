@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
-import { applyPlan, closeMonth, loadForImport, monthCloses, reopenMonth } from '../../data/importRepo';
+import { applyPlan, closeMonth, loadForImport, loadImports, monthCloses, reopenMonth, type ImportCount } from '../../data/importRepo';
+import { alreadyUploaded, fileLine, filesForMonth, loadImportFiles, logImport, type ImportFile, type ImportFileEntry } from '../../data/uploads';
 import { loadCategoryRules, loadMonth, upsertInstallmentItems, type CategoryRule, type MonthData } from '../../data/repo';
 import { addDays } from '../../engine/dates';
 import { formatShekels } from '../../engine/money';
@@ -63,12 +64,16 @@ export default function CloseMonth() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [closed, setClosed] = useState(false);
+  const [files, setFiles] = useState<ImportFile[]>([]);
+  const [counts, setCounts] = useState<ImportCount[]>([]);
   const valid = /^\d{4}-\d{2}$/.test(month);
   // Items change during an upload (installment purchases are added), and files are handled one after another.
   const items = useRef<RecurringItem[]>([]);
   const rules = useRef<CategoryRule[]>([]);
 
   useEffect(() => {
+    if (valid) loadImportFiles(household.id).then(setFiles, () => setFiles([]));
+    if (valid) loadImports(household.id, `${month}-01`).then((m) => setCounts(m[month] ?? []), () => setCounts([]));
     if (valid) monthCloses(household.id).then((ms) => setClosed(ms.includes(month)), () => setClosed(false));
     if (valid) loadCategoryRules(household.id).then((r) => { rules.current = r; }, () => {});
     if (valid) loadMonth(household.id, month).then((d) => { items.current = d.recurring; setData(d); }, () => setError('לא הצלחנו לטעון את הנתונים. נסו לרענן.'));
@@ -80,6 +85,7 @@ export default function CloseMonth() {
     if (!data) return;
     let plan: ImportPlan;
     let label: string;
+    let entry: ImportFileEntry;
     const extra: string[] = [];
     try {
       const sheets = await readWorkbook(f);
@@ -95,12 +101,22 @@ export default function CloseMonth() {
         plan = planCardImport(file, existing, data.categories, household.id, userId, items.current, rules.current);
         label = file.cardLast4;
         extra.push(`סה"כ חיוב בקובץ: ${formatShekels(file.chargedTotal)}`);
+        entry = {
+          fileName: f.name, kind: 'card', cardLast4: file.cardLast4, billingMonth: file.billingMonth || null,
+          firstDate: r?.[0] ? addDays(r[0], 1) : null, lastDate: r?.[1] ? addDays(r[1], -1) : null, rowCount: file.rows.length,
+          ...plan.summary,
+        };
       } else {
         const file = parseLeumiChecking(sheets);
         const r = range(file.rows.map((x) => x.date));
         const existing = r ? await loadForImport(household.id, r[0], r[1]) : [];
         plan = planCheckingImport(file, existing, items.current, household.id, userId);
         label = 'עו"ש';
+        entry = {
+          fileName: f.name, kind: 'checking', cardLast4: null, billingMonth: null,
+          firstDate: r?.[0] ? addDays(r[0], 1) : null, lastDate: r?.[1] ? addDays(r[1], -1) : null, rowCount: file.rows.length,
+          ...plan.summary,
+        };
         if (file.balance) extra.push(`יתרה בבנק: ${formatShekels(file.balance.amount)} (${shortDate(file.balance.asOf)})`);
       }
     } catch {
@@ -113,8 +129,17 @@ export default function CloseMonth() {
       setError(`${f.name}: לא הצלחנו לשמור. נסו שוב.`);
       return;
     }
+    const before = alreadyUploaded(files, entry);
+    if (before) extra.unshift(`הקובץ הזה כבר הועלה (${fileLine(before)}). שום דבר לא נוסף פעמיים.`);
+    try {
+      const logged = await logImport(household.id, entry);
+      setFiles((fs) => [...fs, logged]);
+    } catch {
+      /* the import itself is saved; only the history line is missing */
+    }
     setReview((n) => n + plan.summary.review);
     setLines((ls) => [...ls, summaryLine(label, plan.summary), ...extra]);
+    loadImports(household.id, `${month}-01`).then((m) => setCounts(m[month] ?? []), () => {});
   }
 
   async function onFiles(files: FileList | null, kind: 'card' | 'checking') {
@@ -163,6 +188,16 @@ export default function CloseMonth() {
         פירוט כרטיסי אשראי
         <input type="file" accept=".xlsx" multiple disabled={!data || busy} onChange={(e) => { void onFiles(e.target.files, 'card'); e.target.value = ''; }} />
       </label>
+      <section className="card">
+        <h2>קבצים שהועלו לחודש הזה</h2>
+        {filesForMonth(files, month).length === 0 && <p className="muted">עוד לא הועלו קבצים</p>}
+        {filesForMonth(files, month).map((x) => (
+          <div key={x.id} className="row">{fileLine(x)}</div>
+        ))}
+        {counts.length > 0 && (
+          <p className="muted">{`עסקאות מקבצים בחודש הזה: ${counts.map((c) => (c.label === 'עו"ש' ? `עו"ש ${c.count}` : `כרטיס ${c.label} ${c.count}`)).join(' · ')}`}</p>
+        )}
+      </section>
       {busy && <p className="muted">מעבד…</p>}
       {error && <p className="error">{error}</p>}
       {lines.length > 0 && (

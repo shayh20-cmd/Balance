@@ -1,8 +1,10 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import AddTransaction from './screens/AddTransaction';
+import CloseMonth from './screens/CloseMonth';
 import Funds from './screens/Funds';
 import Home from './screens/Home';
 import Recurring from './screens/Recurring';
+import Review from './screens/Review';
 import Settings from './screens/Settings';
 import Transactions from './screens/Transactions';
 
@@ -25,6 +27,8 @@ export default function AppRoutes() {
         <Route path="/recurring" element={<Recurring />} />
         <Route path="/funds" element={<Funds />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/close/:month" element={<CloseMonth />} />
+        <Route path="/review" element={<Review />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <nav className="tabbar">

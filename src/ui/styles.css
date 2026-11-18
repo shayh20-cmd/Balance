@@ -67,3 +67,5 @@ button:disabled { opacity: .5; }
 .copy-field { display: flex; gap: 6px; }
 .copy-field input { flex: 1; min-width: 0; font-size: 13px; }
 .device-setup ol { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.5; }
+.reminder { display: flex; flex-direction: column; gap: 6px; border-inline-start: 4px solid var(--accent); }
+.review-link { display: block; margin-block-end: 12px; font-size: 14px; }

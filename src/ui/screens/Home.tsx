@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { monthCloses, reviewCount } from '../../data/importRepo';
 import { loadMonth, type BankBalance, type MonthData } from '../../data/repo';
 import { monthOf, todayInIsrael } from '../../engine/dates';
 import { formatShekels } from '../../engine/money';
 import { computeMonth, type MonthSummary } from '../../engine/month';
-import type { Txn } from '../../engine/types';
+import type { ISODate, Month, Txn } from '../../engine/types';
 import { computeWeek, type WeekStatus } from '../../engine/week';
 import Amount from '../components/Amount';
+import CloseReminder from '../components/CloseReminder';
 import ProgressBar from '../components/ProgressBar';
 import SourcePill from '../components/SourcePill';
 import { monthName, shortDate } from '../format';
@@ -19,9 +21,13 @@ interface HomeViewProps {
   bank: BankBalance | null;
   householdName: string;
   memberCount: number;
+  /** null until loaded; the reminder stays hidden then. */
+  closed?: Month[] | null;
+  today?: ISODate;
+  toReview?: number;
 }
 
-export function HomeView({ summary, week, recent, bank, householdName, memberCount }: HomeViewProps) {
+export function HomeView({ summary, week, recent, bank, householdName, memberCount, closed = null, today, toReview = 0 }: HomeViewProps) {
   const overspending = week.projectedOverspend > 0;
   return (
     <div className="home">
@@ -29,6 +35,11 @@ export function HomeView({ summary, week, recent, bank, householdName, memberCou
         <span>{monthName(summary.month)}</span>
         <span>{`${householdName} · ${memberCount} משתתפים`}</span>
       </div>
+
+      {closed && today && <CloseReminder today={today} closed={closed} />}
+      {toReview > 0 && (
+        <Link to="/review" className="review-link">{`${toReview} לבדיקה`}</Link>
+      )}
 
       <section className="card hero">
         <div className="muted">נשאר לבזבז החודש</div>
@@ -76,7 +87,15 @@ export default function Home() {
   const { household } = useHousehold();
   const [data, setData] = useState<MonthData | null>(null);
   const [error, setError] = useState(false);
+  const [closed, setClosed] = useState<Month[] | null>(null);
+  const [toReview, setToReview] = useState(0);
   const today = todayInIsrael();
+
+  useEffect(() => {
+    // Extras: Home works without them.
+    monthCloses(household.id).then(setClosed, () => setClosed(null));
+    reviewCount(household.id).then(setToReview, () => setToReview(0));
+  }, [household.id]);
 
   useEffect(() => {
     loadMonth(household.id, monthOf(today)).then(setData, () => setError(true));
@@ -92,6 +111,9 @@ export default function Home() {
       bank={data.bankBalance}
       householdName={household.name}
       memberCount={data.members.length}
+      closed={closed}
+      today={today}
+      toReview={toReview}
     />
   );
 }

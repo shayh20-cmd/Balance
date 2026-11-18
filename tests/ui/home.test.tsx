@@ -34,7 +34,9 @@ test('shows left-to-spend formatted, with the month and household', () => {
 test('week line shows spent and remaining', () => {
   renderHome();
   expect(screen.getByText('השבוע (1 מתוך 5)')).toBeInTheDocument();
-  expect(screen.getByText('הוצאתם 1,020 ₪ · נשארו 620 ₪ עד שבת')).toBeInTheDocument();
+  expect(screen.getByText('הוצאתם')).toBeInTheDocument();
+  expect(screen.getByText('1,020 ₪')).toBeInTheDocument();
+  expect(screen.getByText('נשארו 620 ₪ עד שבת')).toBeInTheDocument();
 });
 
 test('pace warning only when projectedOverspend > 0', () => {
@@ -66,10 +68,27 @@ test('negative left-to-spend is shown as negative', () => {
 
 test('bank balance missing shows "לא הוזנה", present shows amount and date', () => {
   const { unmount } = renderHome();
-  expect(screen.getByText('יתרה בבנק: לא הוזנה')).toBeInTheDocument();
+  expect(screen.getByText('יתרה בבנק')).toBeInTheDocument();
+  expect(screen.getByText('לא הוזנה')).toBeInTheDocument();
   unmount();
   renderHome({ bank: { amount: 1421000, asOf: '2026-11-02' } });
-  expect(screen.getByText('יתרה בבנק: 14,210 ₪ · עודכן 2.11.2026')).toBeInTheDocument();
+  expect(screen.getByText('14,210 ₪')).toBeInTheDocument();
+  expect(screen.getByText('עודכן 2.11.2026')).toBeInTheDocument();
+});
+
+test('review count card shows only when there is something to review', () => {
+  const { unmount } = renderHome();
+  expect(screen.queryByText('לבדיקה')).toBeNull();
+  unmount();
+  renderHome({ toReview: 3 });
+  expect(screen.getByText('3')).toBeInTheDocument();
+  expect(screen.getAllByRole('link', { name: /לבדיקה/ })[0]).toHaveAttribute('href', '/review');
+});
+
+test('recent row shows the merchant initial and the date', () => {
+  renderHome({ recent: [txn({ date: '2026-11-03', amount: 34200, merchant: 'שופרסל', source: 'manual' })] });
+  expect(screen.getByText('ש')).toBeInTheDocument();
+  expect(screen.getByText('3.11.2026')).toBeInTheDocument();
 });
 
 test('ProgressBar clamps its ratio to [0, 1]', () => {

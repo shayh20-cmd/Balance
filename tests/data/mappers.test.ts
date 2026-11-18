@@ -22,11 +22,11 @@ test('recurring start_month date becomes a Month and back', () => {
   const r = rowToRecurring({
     id: 'r1', household_id: 'h1', kind: 'fixed', name: 'ארנונה', amount_agorot: 80000, day_of_month: 10,
     interval_months: 2, start_month: '2026-02-01', paid_by: 'bank', category_id: null, active: true,
-    end_month: null, variable_amount: false, installment_key: null,
+    end_month: null, variable_amount: false, installment_key: null, merchant_key: null,
   });
   expect(r).toEqual({
     id: 'r1', kind: 'fixed', name: 'ארנונה', amount: 80000, dayOfMonth: 10, intervalMonths: 2, startMonth: '2026-02', active: true,
-    paidBy: 'bank', endMonth: null, variableAmount: false, installmentKey: null,
+    paidBy: 'bank', endMonth: null, variableAmount: false, installmentKey: null, merchantKey: null,
   });
   expect(recurringToRow(r, 'h1').start_month).toBe('2026-02-01');
 });
@@ -35,7 +35,7 @@ test('a recurring row with end_month converts and back', () => {
   const r = rowToRecurring({
     id: 'r2', household_id: 'h1', kind: 'fixed', name: 'ליברה (תשלומים)', amount_agorot: 12200, day_of_month: 22,
     interval_months: 1, start_month: '2026-06-01', paid_by: 'card', category_id: null, active: true,
-    end_month: '2027-03-01', variable_amount: true, installment_key: 'inst:1111:2026-06-22:ליברה:10',
+    end_month: '2027-03-01', variable_amount: true, installment_key: 'inst:1111:2026-06-22:ליברה:10', merchant_key: 'ליברה',
   });
   expect(r).toMatchObject({ endMonth: '2027-03', variableAmount: true, installmentKey: 'inst:1111:2026-06-22:ליברה:10' });
   expect(recurringToRow(r, 'h1')).toMatchObject({ end_month: '2027-03-01', variable_amount: true, installment_key: 'inst:1111:2026-06-22:ליברה:10' });

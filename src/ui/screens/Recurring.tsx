@@ -12,7 +12,7 @@ import { useToast } from '../toast';
 type Editing = {
   id?: string; kind: RecurringItem['kind']; name: string; amount: string; dayOfMonth: string;
   intervalMonths: number; startMonth: string; paidBy: RecurringItem['paidBy'];
-  endMonth: string; variableAmount: boolean; installmentKey: string | null;
+  endMonth: string; variableAmount: boolean; installmentKey: string | null; merchantKey: string | null;
 };
 
 const intervals = [1, 2, 3, 6, 12];
@@ -32,7 +32,7 @@ export default function Recurring() {
   }, [household.id, month]);
   useEffect(reload, [reload]);
 
-  const blank = (kind: RecurringItem['kind']): Editing => ({ kind, name: '', amount: '', dayOfMonth: '1', intervalMonths: 1, startMonth: month, paidBy: 'bank', endMonth: '', variableAmount: false, installmentKey: null });
+  const blank = (kind: RecurringItem['kind']): Editing => ({ kind, name: '', amount: '', dayOfMonth: '1', intervalMonths: 1, startMonth: month, paidBy: 'bank', endMonth: '', variableAmount: false, installmentKey: null, merchantKey: null });
 
   async function save(e: FormEvent) {
     e.preventDefault();
@@ -52,7 +52,7 @@ export default function Recurring() {
         id: editing.id, kind: editing.kind, name: editing.name.trim(), amount, dayOfMonth: day,
         intervalMonths: editing.intervalMonths, startMonth: editing.startMonth, active: true,
         paidBy: editing.kind === 'income' ? 'bank' : editing.paidBy,
-        endMonth: editing.endMonth || null, variableAmount: editing.variableAmount, installmentKey: editing.installmentKey,
+        endMonth: editing.endMonth || null, variableAmount: editing.variableAmount, installmentKey: editing.installmentKey, merchantKey: editing.merchantKey,
       });
       setEditing(null);
       setError(null);
@@ -88,7 +88,7 @@ export default function Recurring() {
             key={r.id}
             item={r}
             expected={expectedAmount(r, data.history?.[r.id], month)}
-            onEdit={() => setEditing({ id: r.id, kind: r.kind, name: r.name, amount: String(r.amount / 100), dayOfMonth: String(r.dayOfMonth), intervalMonths: r.intervalMonths, startMonth: r.startMonth, paidBy: r.paidBy, endMonth: r.endMonth ?? '', variableAmount: r.variableAmount, installmentKey: r.installmentKey })}
+            onEdit={() => setEditing({ id: r.id, kind: r.kind, name: r.name, amount: String(r.amount / 100), dayOfMonth: String(r.dayOfMonth), intervalMonths: r.intervalMonths, startMonth: r.startMonth, paidBy: r.paidBy, endMonth: r.endMonth ?? '', variableAmount: r.variableAmount, installmentKey: r.installmentKey, merchantKey: r.merchantKey })}
             onDelete={() => setDeleting(r)}
           />
         ))}

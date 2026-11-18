@@ -208,3 +208,15 @@ export async function loadRecentTxns(householdId: string, from: ISODate): Promis
   const rows = check(await supabase.from('transactions').select('*').eq('household_id', householdId).gte('date', from));
   return (rows as TxnRow[]).map(rowToTxn);
 }
+
+/** A confirmed link teaches a card-paid item the merchant it is charged under. */
+export async function learnItemMerchant(itemId: string, merchant: string): Promise<void> {
+  const key = merchantKey(merchant);
+  if (!key) return;
+  check(await supabase.from('recurring_items').update({ merchant_key: key }).eq('id', itemId).eq('paid_by', 'card'));
+}
+
+/** "Not related": the transaction goes back to ordinary spending. */
+export async function unlinkTransaction(txnId: string): Promise<void> {
+  check(await supabase.from('transactions').update({ recurring_item_id: null, needs_review: false }).eq('id', txnId));
+}

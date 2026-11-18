@@ -24,7 +24,7 @@ test('an installment row 6 of 10 drafts an item from its own month to 2027-03', 
   expect(installmentDrafts(card, [])).toEqual([{
     kind: 'fixed', name: 'ליברה ביטוח חובה (תשלומים)', amount: 12200, dayOfMonth: 22, intervalMonths: 1,
     startMonth: '2026-11', endMonth: '2027-03', active: true, paidBy: 'card', variableAmount: false,
-    installmentKey: 'inst:1111:2026-06-22:ליברה ביטוח חובה:10:122000',
+    installmentKey: 'inst:1111:2026-06-22:ליברה ביטוח חובה:10:122000', merchantKey: 'ליברה ביטוח חובה',
   }]);
 });
 

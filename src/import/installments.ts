@@ -1,3 +1,4 @@
+import { merchantKey } from '../engine/merchant';
 import { addMonths, monthOf } from '../engine/dates';
 import type { RecurringItem } from '../engine/types';
 import type { CardFile } from './types';
@@ -27,7 +28,7 @@ export function installmentDrafts(file: CardFile, items: RecurringItem[]): Omit<
     out.push({
       kind: 'fixed', name: `${r.merchant} (תשלומים)`, amount: regular(r.amount, inst), dayOfMonth: Number(inst.purchaseDate.slice(8, 10)),
       intervalMonths: 1, startMonth: monthOf(r.date), endMonth: addMonths(firstMonth, inst.count - 1), active: true, paidBy: 'card',
-      variableAmount: false, installmentKey: key,
+      variableAmount: false, installmentKey: key, merchantKey: merchantKey(r.merchant),
     });
   }
   return out;

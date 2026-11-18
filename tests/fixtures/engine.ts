@@ -2,7 +2,7 @@ import type { Fund, RecurringItem, Txn } from '../../src/engine/types';
 
 export function item(p: Partial<RecurringItem> & Pick<RecurringItem, 'id' | 'kind' | 'amount'>): RecurringItem {
   return { name: p.id, dayOfMonth: 1, intervalMonths: 1, startMonth: '2026-01', active: true, paidBy: 'bank',
-    endMonth: null, variableAmount: false, installmentKey: null, ...p };
+    endMonth: null, variableAmount: false, installmentKey: null, merchantKey: null, ...p };
 }
 
 let seq = 0;

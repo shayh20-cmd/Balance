@@ -51,3 +51,9 @@ test('end_month defaults to null and variable_amount to false', async () => {
   await item(null);
   expect((await db.query(`select end_month, variable_amount from recurring_items`)).rows).toEqual([{ end_month: null, variable_amount: false }]);
 });
+
+test('merchant_key defaults to null', async () => {
+  await asUser(db, A.id, A.email);
+  await item(null);
+  expect((await db.query(`select merchant_key from recurring_items`)).rows).toEqual([{ merchant_key: null }]);
+});

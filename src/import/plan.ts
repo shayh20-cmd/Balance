@@ -67,7 +67,7 @@ export function planCardImport(
   const before = file.rows.filter((r) => byKey.has(r.importKey));
   const relinked = links(
     before.filter((r) => !byKey.get(r.importKey)!.recurringItemId).map((r) => ({
-      date: r.date, amount: r.amount, kind: 'expense' as const, isCardSettlement: false, importKey: r.importKey,
+      date: r.date, amount: r.amount, kind: 'expense' as const, isCardSettlement: false, importKey: r.importKey, merchant: r.merchant,
     })),
     cardItems, existing.filter((t) => !t.importKey || !before.some((r) => r.importKey === t.importKey)),
   );
@@ -88,7 +88,7 @@ export function planCardImport(
 
   const m = matchRows(existing, file.rows);
   const linkable = [...m.matched.map((x) => x.row), ...m.unmatched].map((r) => ({
-    date: r.date, amount: r.amount, kind: 'expense' as const, isCardSettlement: false, importKey: r.importKey,
+    date: r.date, amount: r.amount, kind: 'expense' as const, isCardSettlement: false, importKey: r.importKey, merchant: r.merchant,
   }));
   const linked = links(linkable, cardItems, existing);
 

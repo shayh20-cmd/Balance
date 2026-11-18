@@ -85,3 +85,27 @@ test('a variable item links a bill 40% above expected without review', () => {
   const bill = row({ amount: 33460, kind: 'expense', importKey: 'w', date: '2026-11-24' });
   expect(linkRecurring([bill], [water], '2026-11')).toEqual([{ rowKey: 'w', itemId: 'water', uncertain: false }]);
 });
+
+describe('card items', () => {
+  const cardRow = (merchant: string, amount: number, date = '2026-11-03', importKey = merchant) =>
+    ({ date, amount, kind: 'expense' as const, isCardSettlement: false, importKey, merchant });
+  const netflixKnown = item({ id: 'nf', kind: 'fixed', amount: 5490, dayOfMonth: 3, paidBy: 'card', merchantKey: 'netflixcom amsterdam nld' });
+  const netflixNew = item({ id: 'nf', kind: 'fixed', amount: 5490, dayOfMonth: 3, paidBy: 'card' });
+
+  test('a card item links surely only to its own merchant', () => {
+    expect(linkRecurring([cardRow('NETFLIX.COM AMSTERDAM NLD', 5490)], [netflixKnown], '2026-11')).toEqual([{ rowKey: 'NETFLIX.COM AMSTERDAM NLD', itemId: 'nf', uncertain: false }]);
+  });
+
+  test('another merchant with the same amount and day never links to a card item with a known merchant', () => {
+    expect(linkRecurring([cardRow('שומשום קונקורד', 5490)], [netflixKnown], '2026-11')).toEqual([]);
+  });
+
+  test('a card item whose merchant is not known yet links only for review', () => {
+    expect(linkRecurring([cardRow('NETFLIX.COM AMSTERDAM NLD', 5490)], [netflixNew], '2026-11')).toEqual([{ rowKey: 'NETFLIX.COM AMSTERDAM NLD', itemId: 'nf', uncertain: true }]);
+    expect(linkRecurring([cardRow('BIKOL', 7000)], [netflixNew], '2026-11')).toEqual([]);
+  });
+
+  test('a known merchant links even when the price changed', () => {
+    expect(linkRecurring([cardRow('NETFLIX.COM AMSTERDAM NLD', 6990, '2026-11-05')], [netflixKnown], '2026-11')[0]).toMatchObject({ itemId: 'nf', uncertain: false });
+  });
+});

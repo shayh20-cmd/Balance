@@ -195,3 +195,9 @@ test('a rule does not override the person\'s category on a matched txn', () => {
   const plan = planCardImport(card, [gp], categories, 'h1', 'u1', [], [{ merchantKey: "גינגז מרקט קרליבך", categoryId: 'c-fun' }]);
   expect(plan.updates[0].patch).not.toHaveProperty('category_id');
 });
+
+test('a card row of an unrelated merchant does not link to a card item with a known merchant', () => {
+  const insurance = item({ id: 'ins', kind: 'fixed', amount: 5713, dayOfMonth: 1, paidBy: 'card', merchantKey: 'ליברה' });
+  const plan = planCardImport(card, [], categories, 'h1', 'u1', [insurance]);
+  expect(plan.inserts.find((r) => r.merchant === 'שומשום קונקורד')!.recurring_item_id).toBeNull();
+});

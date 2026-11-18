@@ -43,6 +43,8 @@ export interface RecurringItem {
   variableAmount: boolean;
   /** Set on items made from a card installment purchase; unique per household. */
   installmentKey: string | null;
+  /** For a card-paid item: the merchant it is charged under (merchantKey), learned from a confirmed link. */
+  merchantKey: string | null;
 }
 
 export interface Fund {

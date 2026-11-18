@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   addTransaction, deleteTransaction, getTransaction, loadCategoryRules, loadMonth, saveCategoryRule, updateTransaction,
-  type CategoryRule, type MonthData,
+  learnItemMerchant, type CategoryRule, type MonthData,
 } from '../../data/repo';
 import { merchantKey } from '../../engine/merchant';
 import { monthOf, todayInIsrael } from '../../engine/dates';
-import type { Txn } from '../../engine/types';
+import type { RecurringItem, Txn } from '../../engine/types';
 import ConfirmDialog from '../components/ConfirmDialog';
 import TransactionForm, { type FormDraft } from '../components/TransactionForm';
 import { useHousehold } from '../household';
@@ -19,6 +19,17 @@ export function ruleToSave(
 ): { merchant: string; categoryId: string } | null {
   if (!before || !after.categoryId || after.categoryId === before.categoryId || !merchantKey(after.merchant)) return null;
   return { merchant: after.merchant, categoryId: after.categoryId };
+}
+
+/** Linking a transaction by hand to a card-paid item teaches the item its merchant. */
+export function itemToLearn(
+  before: { recurringItemId: string | null } | undefined,
+  after: { merchant: string; recurringItemId: string | null },
+  items: RecurringItem[],
+): { itemId: string; merchant: string } | null {
+  const it = items.find((i) => i.id === after.recurringItemId);
+  if (!it || it.paidBy !== 'card' || before?.recurringItemId === it.id || !merchantKey(after.merchant)) return null;
+  return { itemId: it.id, merchant: after.merchant };
 }
 
 /** "Rules, not guesses" (§7.4): where a transaction's category came from. */
@@ -49,6 +60,8 @@ export default function AddTransaction() {
     try {
       if (id) await updateTransaction(id, draft);
       else await addTransaction(household.id, { ...draft, memberId: userId }, installments);
+      const learn = itemToLearn(initial, draft, data?.recurring ?? []);
+      if (learn) await learnItemMerchant(learn.itemId, learn.merchant).catch(() => {});
       const rule = ruleToSave(initial, draft);
       const name = rule && data?.categories.find((c) => c.id === rule.categoryId)?.name;
       if (rule && name) {

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { loadSuggestions, markReviewed, resolveInbox, reviewItems, type InboxItem } from '../../data/importRepo';
-import { dismissRecurring, upsertRecurring } from '../../data/repo';
+import { dismissRecurring, learnItemMerchant, unlinkTransaction, upsertRecurring } from '../../data/repo';
 import { monthOf, todayInIsrael } from '../../engine/dates';
 import type { RecurringSuggestion } from '../../engine/detect';
 import { formatShekels } from '../../engine/money';
-import type { Txn } from '../../engine/types';
+import type { RecurringItem, Txn } from '../../engine/types';
 import Amount from '../components/Amount';
 import { monthName, shortDate } from '../format';
 import { useHousehold } from '../household';
@@ -16,11 +16,12 @@ export default function Review() {
   const [inbox, setInbox] = useState<InboxItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<RecurringSuggestion[]>([]);
+  const [items, setItems] = useState<RecurringItem[]>([]);
   const today = todayInIsrael();
 
   useEffect(() => {
     reviewItems(household.id).then(
-      (r) => { setTxns(r.txns); setInbox(r.inbox); },
+      (r) => { setTxns(r.txns); setInbox(r.inbox); setItems(r.items); },
       () => setError('לא הצלחנו לטעון את הנתונים. נסו לרענן.'),
     );
     loadSuggestions(household.id, today).then(setSuggestions, () => setSuggestions([]));
@@ -33,6 +34,7 @@ export default function Review() {
       await upsertRecurring(household.id, {
         kind: s.kind, name: s.merchant, amount: s.amount, dayOfMonth: s.dayOfMonth, intervalMonths: 1,
         startMonth: monthOf(today), active: true, paidBy: s.paidBy, endMonth: null, variableAmount: false, installmentKey: null,
+        merchantKey: s.paidBy === 'card' ? s.merchantKey : null,
       });
       drop(s.merchantKey);
     } catch {
@@ -49,10 +51,25 @@ export default function Review() {
     }
   }
 
-  async function ok(id: string) {
+  const itemOf = (t: Txn) => items.find((i) => i.id === t.recurringItemId);
+  const done = (id: string) => setTxns((ts) => ts?.filter((t) => t.id !== id) ?? null);
+
+  /** Confirming a link to a card item teaches it the merchant, so next month links surely. */
+  async function ok(t: Txn) {
     try {
-      await markReviewed(id);
-      setTxns((ts) => ts?.filter((t) => t.id !== id) ?? null);
+      await markReviewed(t.id);
+      const it = itemOf(t);
+      if (it?.paidBy === 'card') await learnItemMerchant(it.id, t.merchant);
+      done(t.id);
+    } catch {
+      setError('לא הצלחנו לשמור. נסו שוב.');
+    }
+  }
+
+  async function notRelated(t: Txn) {
+    try {
+      await unlinkTransaction(t.id);
+      done(t.id);
     } catch {
       setError('לא הצלחנו לשמור. נסו שוב.');
     }
@@ -98,10 +115,12 @@ export default function Review() {
             <div key={t.id} className="row">
               <span>
                 {t.merchant} <span className="muted">{shortDate(t.date)}</span>
+                {itemOf(t) && <span className="muted">{` · קושר ל: ${itemOf(t)!.name}`}</span>}
               </span>
               <Amount value={t.amount} className={t.kind === 'income' ? 'income' : ''} />
               <span className="actions-inline">
-                <button type="button" onClick={() => ok(t.id)}>זה בסדר</button>
+                <button type="button" onClick={() => ok(t)}>{itemOf(t) ? 'כן, זה שייך' : 'זה בסדר'}</button>
+                {itemOf(t) && <button type="button" onClick={() => notRelated(t)}>לא שייך</button>}
                 <Link to={`/tx/${t.id}`}>עריכה</Link>
               </span>
             </div>

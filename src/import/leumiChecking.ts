@@ -1,4 +1,5 @@
 import { daysBetweenInclusive, daysInMonth, monthOf } from '../engine/dates';
+import { merchantKey } from '../engine/merchant';
 import { isDueInMonth } from '../engine/month';
 import type { Agorot, ISODate, Month, RecurringItem } from '../engine/types';
 import { cellAgorot, cellDate } from './leumiCard';
@@ -71,15 +72,23 @@ export function parseLeumiChecking(sheets: Sheet[]): CheckingFile {
 }
 
 /** What linking needs from a row; card rows fit too. */
-export type LinkRow = Pick<CheckingRow, 'date' | 'amount' | 'kind' | 'isCardSettlement' | 'importKey'>;
+/** merchant: a card row's merchant name, so card items link by who charged them. */
+export type LinkRow = Pick<CheckingRow, 'date' | 'amount' | 'kind' | 'isCardSettlement' | 'importKey'> & { merchant?: string };
 export interface Link { rowKey: string; itemId: string; uncertain: boolean }
 
 /**
- * Pairs each fixed item and income due in `months` with its row, same kind. First a sure pass: within ±20% of
- * the expected amount and ±6 days of its day of month, in that month. Then, for what is left, a wider pass
- * (±50%, ±10 days, across the month edge) whose links are uncertain: a bonus month or a late cheque would
- * otherwise count both the expected amount and the real row. Closest amounts pair first; each row and item
- * links once. The caller filters items by who pays them (bank or card).
+ * Pairs each fixed item and income due in `months` with its row, same kind, closest amounts first; each row and
+ * item links once. The caller filters items by who pays them (bank or card).
+ *
+ * Sure links:
+ * - a bank item: within ±20% of the expected amount (±50% for a variable-amount item) and ±6 days of its day,
+ *   in that month;
+ * - a card item: only a row of its own merchant (merchantKey, learned from a confirmed link), within ±50% and
+ *   ±10 days. Card rows are many and small, so amount and day alone would link unrelated purchases.
+ *
+ * Uncertain links (sent to review), for what is left:
+ * - a bank item: ±50%, ±10 days, across the month edge (a bonus month, a late cheque);
+ * - a card item with no merchant yet: ±20%, ±6 days, in that month. Confirming it teaches the merchant.
  */
 export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: Month | Month[]): Link[] {
   const ms = Array.isArray(months) ? months : [months];
@@ -87,7 +96,8 @@ export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: M
   const usedItems = new Set<string>();
   const out: Link[] = [];
 
-  const pass = (maxOff: (it: RecurringItem) => number, maxDays: number, sameMonth: boolean, uncertain: boolean) => {
+  type Rule = { off: number; days: number; sameMonth: boolean } | null;
+  const pass = (rule: (it: RecurringItem, r: LinkRow) => Rule, uncertain: boolean) => {
     const pairs: { rowKey: string; itemKey: string; itemId: string; off: number }[] = [];
     for (const month of ms) {
       for (const it of items) {
@@ -97,10 +107,11 @@ export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: M
         const kind = it.kind === 'income' ? 'income' : 'expense';
         for (const r of rows) {
           if (usedRows.has(r.importKey) || r.kind !== kind || r.isCardSettlement) continue;
-          if (sameMonth && monthOf(r.date) !== month) continue;
+          const w = rule(it, r);
+          if (!w || (w.sameMonth && monthOf(r.date) !== month)) continue;
           const off = Math.abs(r.amount - it.amount) / Math.max(it.amount, 1);
           const days = Math.abs(daysBetweenInclusive(due, r.date) - 1);
-          if (off <= maxOff(it) && days <= maxDays) pairs.push({ rowKey: r.importKey, itemKey, itemId: it.id, off });
+          if (off <= w.off && days <= w.days) pairs.push({ rowKey: r.importKey, itemKey, itemId: it.id, off });
         }
       }
     }
@@ -112,8 +123,15 @@ export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: M
       out.push({ rowKey: p.rowKey, itemId: p.itemId, uncertain });
     }
   };
-  // A variable-amount item (water, electricity) is sure within ±50%.
-  pass((it) => (it.variableAmount ? 0.5 : 0.2), 6, true, false);
-  pass(() => 0.5, 10, false, true);
+  const card = (it: RecurringItem) => it.paidBy === 'card' && it.kind === 'fixed';
+  const sameMerchant = (it: RecurringItem, r: LinkRow) => !!r.merchant && merchantKey(r.merchant) === it.merchantKey;
+  pass((it, r) => {
+    if (!card(it)) return { off: it.variableAmount ? 0.5 : 0.2, days: 6, sameMonth: true };
+    return it.merchantKey && sameMerchant(it, r) ? { off: 0.5, days: 10, sameMonth: true } : null;
+  }, false);
+  pass((it) => {
+    if (!card(it)) return { off: 0.5, days: 10, sameMonth: false };
+    return it.merchantKey ? null : { off: 0.2, days: 6, sameMonth: true };
+  }, true);
   return out;
 }

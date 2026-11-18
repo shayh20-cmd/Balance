@@ -1,6 +1,6 @@
 import { addMonths, monthOf } from '../engine/dates';
 import { detectRecurring, type RecurringSuggestion } from '../engine/detect';
-import type { ISODate, Month, Txn } from '../engine/types';
+import type { ISODate, Month, RecurringItem, Txn } from '../engine/types';
 import type { ImportPlan } from '../import/plan';
 import { rowToRecurring, rowToTxn, type RecurringRow, type TxnRow } from './mappers';
 import { currentUserId, loadDismissals, loadRecentTxns } from './repo';
@@ -77,12 +77,14 @@ export async function reopenMonth(householdId: string, month: Month): Promise<vo
   check(await supabase.from('month_closes').delete().eq('household_id', householdId).eq('month', `${month}-01`));
 }
 
-export async function reviewItems(householdId: string): Promise<{ txns: Txn[]; inbox: InboxItem[] }> {
-  const [txns, inbox] = await Promise.all([
+export async function reviewItems(householdId: string): Promise<{ txns: Txn[]; inbox: InboxItem[]; items: RecurringItem[] }> {
+  const [txns, inbox, items] = await Promise.all([
     supabase.from('transactions').select('*').eq('household_id', householdId).eq('needs_review', true).order('date'),
     supabase.from('ingest_inbox').select('id, title, body, created_at').eq('household_id', householdId).is('resolved_at', null).order('created_at'),
+    supabase.from('recurring_items').select('*').eq('household_id', householdId),
   ]);
   return {
+    items: (check(items) as RecurringRow[]).map(rowToRecurring),
     txns: (check(txns) as TxnRow[]).map(rowToTxn),
     inbox: (check(inbox) as { id: string; title: string; body: string; created_at: string }[]).map((r) => ({
       id: r.id, title: r.title, body: r.body, createdAt: r.created_at,

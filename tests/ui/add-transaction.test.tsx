@@ -71,3 +71,12 @@ test('the form explains where the category came from', async () => {
   render(<TransactionForm {...props} onSubmit={vi.fn()} categoryOrigin="לפי כלל שלמד מתיקון שלך" />);
   expect(screen.getByText('לפי כלל שלמד מתיקון שלך')).toBeInTheDocument();
 });
+
+test('linking a card transaction to a card item teaches the item its merchant', async () => {
+  const { itemToLearn } = await import('../../src/ui/screens/AddTransaction');
+  const items = [item({ id: 'nf', kind: 'fixed', amount: 5490, paidBy: 'card' }), item({ id: 'rent', kind: 'fixed', amount: 840000 })];
+  expect(itemToLearn({ recurringItemId: null }, { merchant: 'NETFLIX.COM', recurringItemId: 'nf' }, items)).toEqual({ itemId: 'nf', merchant: 'NETFLIX.COM' });
+  expect(itemToLearn({ recurringItemId: 'nf' }, { merchant: 'NETFLIX.COM', recurringItemId: 'nf' }, items)).toBeNull();
+  expect(itemToLearn({ recurringItemId: null }, { merchant: 'שיק', recurringItemId: 'rent' }, items)).toBeNull();
+  expect(itemToLearn(undefined, { merchant: 'NETFLIX.COM', recurringItemId: 'nf' }, items)).toEqual({ itemId: 'nf', merchant: 'NETFLIX.COM' });
+});

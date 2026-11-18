@@ -79,3 +79,9 @@ test('items not due this month and card settlements are left alone', () => {
   const card = item({ id: 'c', kind: 'fixed', amount: 100000, dayOfMonth: 2 });
   expect(linkRecurring([row({ amount: 100000, kind: 'expense', importKey: 's', isCardSettlement: true })], [card], '2026-11')).toEqual([]);
 });
+
+test('a variable item links a bill 40% above expected without review', () => {
+  const water = item({ id: 'water', kind: 'fixed', amount: 23900, dayOfMonth: 24, variableAmount: true });
+  const bill = row({ amount: 33460, kind: 'expense', importKey: 'w', date: '2026-11-24' });
+  expect(linkRecurring([bill], [water], '2026-11')).toEqual([{ rowKey: 'w', itemId: 'water', uncertain: false }]);
+});

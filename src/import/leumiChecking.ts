@@ -87,7 +87,7 @@ export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: M
   const usedItems = new Set<string>();
   const out: Link[] = [];
 
-  const pass = (maxOff: number, maxDays: number, sameMonth: boolean, uncertain: boolean) => {
+  const pass = (maxOff: (it: RecurringItem) => number, maxDays: number, sameMonth: boolean, uncertain: boolean) => {
     const pairs: { rowKey: string; itemKey: string; itemId: string; off: number }[] = [];
     for (const month of ms) {
       for (const it of items) {
@@ -100,7 +100,7 @@ export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: M
           if (sameMonth && monthOf(r.date) !== month) continue;
           const off = Math.abs(r.amount - it.amount) / Math.max(it.amount, 1);
           const days = Math.abs(daysBetweenInclusive(due, r.date) - 1);
-          if (off <= maxOff && days <= maxDays) pairs.push({ rowKey: r.importKey, itemKey, itemId: it.id, off });
+          if (off <= maxOff(it) && days <= maxDays) pairs.push({ rowKey: r.importKey, itemKey, itemId: it.id, off });
         }
       }
     }
@@ -112,7 +112,8 @@ export function linkRecurring(rows: LinkRow[], items: RecurringItem[], months: M
       out.push({ rowKey: p.rowKey, itemId: p.itemId, uncertain });
     }
   };
-  pass(0.2, 6, true, false);
-  pass(0.5, 10, false, true);
+  // A variable-amount item (water, electricity) is sure within ±50%.
+  pass((it) => (it.variableAmount ? 0.5 : 0.2), 6, true, false);
+  pass(() => 0.5, 10, false, true);
   return out;
 }

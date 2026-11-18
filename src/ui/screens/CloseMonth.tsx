@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { applyPlan, closeMonth, loadForImport } from '../../data/importRepo';
-import { loadMonth, type MonthData } from '../../data/repo';
+import { loadMonth, upsertInstallmentItems, type MonthData } from '../../data/repo';
 import { addDays } from '../../engine/dates';
 import { formatShekels } from '../../engine/money';
-import type { ISODate } from '../../engine/types';
+import type { ISODate, RecurringItem } from '../../engine/types';
+import { installmentDrafts } from '../../import/installments';
 import { parseLeumiCard } from '../../import/leumiCard';
 import { parseLeumiChecking } from '../../import/leumiChecking';
 import { planCardImport, planCheckingImport, type ImportPlan } from '../../import/plan';
@@ -33,9 +34,11 @@ export default function CloseMonth() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const valid = /^\d{4}-\d{2}$/.test(month);
+  // Items change during an upload (installment purchases are added), and files are handled one after another.
+  const items = useRef<RecurringItem[]>([]);
 
   useEffect(() => {
-    if (valid) loadMonth(household.id, month).then(setData, () => setError('לא הצלחנו לטעון את הנתונים. נסו לרענן.'));
+    if (valid) loadMonth(household.id, month).then((d) => { items.current = d.recurring; setData(d); }, () => setError('לא הצלחנו לטעון את הנתונים. נסו לרענן.'));
   }, [household.id, month, valid]);
 
   if (!valid) return <Navigate to="/" replace />;
@@ -51,14 +54,20 @@ export default function CloseMonth() {
         const file = parseLeumiCard(sheets);
         const r = range(file.rows.map((x) => x.date));
         const existing = r ? await loadForImport(household.id, r[0], r[1]) : [];
-        plan = planCardImport(file, existing, data.categories, household.id, userId, data.recurring);
+        const drafts = installmentDrafts(file, items.current);
+        if (drafts.length) {
+          const added = await upsertInstallmentItems(household.id, drafts);
+          items.current = (await loadMonth(household.id, month)).recurring;
+          if (added) extra.push(`נוספו ${added} עסקאות בתשלומים לקבועות`);
+        }
+        plan = planCardImport(file, existing, data.categories, household.id, userId, items.current);
         label = file.cardLast4;
         extra.push(`סה"כ חיוב בקובץ: ${formatShekels(file.chargedTotal)}`);
       } else {
         const file = parseLeumiChecking(sheets);
         const r = range(file.rows.map((x) => x.date));
         const existing = r ? await loadForImport(household.id, r[0], r[1]) : [];
-        plan = planCheckingImport(file, existing, data.recurring, household.id, userId);
+        plan = planCheckingImport(file, existing, items.current, household.id, userId);
         label = 'עו"ש';
         if (file.balance) extra.push(`יתרה בבנק: ${formatShekels(file.balance.amount)} (${shortDate(file.balance.asOf)})`);
       }

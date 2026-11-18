@@ -1,7 +1,7 @@
 import { addMonths } from '../engine/dates';
 import { splitInstallments } from '../engine/installments';
 import type { MonthInput } from '../engine/month';
-import type { Agorot, Fund, ISODate, Month, RecurringItem, Txn } from '../engine/types';
+import type { Agorot, Fund, ISODate, Month, RecurringItem, Txn, TxnFields } from '../engine/types';
 import {
   recurringToRow, rowToFund, rowToRecurring, rowToTxn, txnToRow,
   type FundEntryRow, type FundRow, type FundSpendRow, type RecurringRow, type TxnRow,
@@ -14,7 +14,7 @@ export interface Member { userId: string; displayName: string; role: 'owner' | '
 export interface BankBalance { amount: Agorot; asOf: ISODate }
 export interface FundDetails extends Fund { annual: boolean }
 export type MonthData = Omit<MonthInput, 'funds'> & { categories: Category[]; members: Member[]; bankBalance: BankBalance | null; funds: FundDetails[] };
-export type TxnDraft = Omit<Txn, 'id' | 'status'> & { note?: string | null };
+export type TxnDraft = Omit<TxnFields, 'status'> & { note?: string | null };
 
 function check<T>(res: { data: T; error: { message: string } | null }): T {
   if (res.error) throw new Error(res.error.message);

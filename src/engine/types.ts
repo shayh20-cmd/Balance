@@ -16,7 +16,14 @@ export interface Txn {
   source: Source;
   memberId: string;
   status: 'pending' | 'confirmed';
+  cardLast4: string | null;
+  /** Set on rows that came from a file; unique per household. */
+  importKey: string | null;
+  needsReview: boolean;
 }
+
+/** Fields the app writes when a person adds or edits a transaction; the import fields keep their defaults. */
+export type TxnFields = Omit<Txn, 'id' | 'cardLast4' | 'importKey' | 'needsReview'>;
 
 export interface RecurringItem {
   id: string;

@@ -4,6 +4,7 @@ const txnRow: TxnRow = {
   id: 't1', household_id: 'h1', member_id: 'u1', date: '2026-11-05', amount_agorot: 34200, kind: 'expense',
   merchant: 'שופרסל', category_id: 'c1', recurring_item_id: null, fund_id: null, is_card_settlement: false,
   source: 'apple_pay', status: 'pending', installment_group: null, installment_index: null, installment_count: null, note: null,
+  card_last4: '5218', import_key: null, needs_review: true, category_name_hint: null,
 };
 
 test('a transaction row converts to a Txn and back', () => {
@@ -11,8 +12,9 @@ test('a transaction row converts to a Txn and back', () => {
   expect(t).toEqual({
     id: 't1', date: '2026-11-05', amount: 34200, kind: 'expense', merchant: 'שופרסל', categoryId: 'c1',
     recurringItemId: null, fundId: null, isCardSettlement: false, source: 'apple_pay', memberId: 'u1', status: 'pending',
+    cardLast4: '5218', importKey: null, needsReview: true,
   });
-  const { installment_group, installment_index, installment_count, note, ...core } = txnRow;
+  const { installment_group, installment_index, installment_count, note, card_last4, import_key, needs_review, category_name_hint, ...core } = txnRow;
   expect(txnToRow(t, 'h1')).toEqual(core);
 });
 

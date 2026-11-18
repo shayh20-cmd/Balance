@@ -1,6 +1,6 @@
 import { monthOf } from '../engine/dates';
 import { fundBalanceBefore, type FundFlow } from '../engine/funds';
-import type { Fund, Month, RecurringItem, Txn } from '../engine/types';
+import type { Fund, Month, RecurringItem, Txn, TxnFields } from '../engine/types';
 
 export interface TxnRow {
   id: string;
@@ -20,6 +20,10 @@ export interface TxnRow {
   installment_index: number | null;
   installment_count: number | null;
   note: string | null;
+  card_last4: string | null;
+  import_key: string | null;
+  needs_review: boolean;
+  category_name_hint: string | null;
 }
 
 export interface RecurringRow {
@@ -67,10 +71,11 @@ export function rowToTxn(r: TxnRow): Txn {
     id: r.id, date: r.date, amount: r.amount_agorot, kind: r.kind, merchant: r.merchant, categoryId: r.category_id,
     recurringItemId: r.recurring_item_id, fundId: r.fund_id, isCardSettlement: r.is_card_settlement,
     source: r.source, memberId: r.member_id, status: r.status,
+    cardLast4: r.card_last4 ?? null, importKey: r.import_key ?? null, needsReview: r.needs_review ?? false,
   };
 }
 
-export function txnToRow(t: Omit<Txn, 'id'> & { id?: string }, householdId: string): Partial<TxnRow> {
+export function txnToRow(t: TxnFields & { id?: string }, householdId: string): Partial<TxnRow> {
   return {
     ...(t.id ? { id: t.id } : {}),
     household_id: householdId, member_id: t.memberId, date: t.date, amount_agorot: t.amount, kind: t.kind,

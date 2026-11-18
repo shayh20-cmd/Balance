@@ -13,6 +13,8 @@ interface Props {
   initial?: Txn & { note?: string | null };
   onSubmit: (draft: FormDraft, installments: number) => void;
   onDelete?: () => void;
+  /** Where the category came from (a learned rule, the bank's category), shown under it. */
+  categoryOrigin?: string | null;
 }
 
 /** The link select encodes "rec:<id>" for a recurring item and "fund:<id>" for a fund. */
@@ -22,7 +24,7 @@ function linkOf(t?: Txn): string {
   return '';
 }
 
-export default function TransactionForm({ categories, recurring, funds, today, initial, onSubmit, onDelete }: Props) {
+export default function TransactionForm({ categories, recurring, funds, today, initial, onSubmit, onDelete, categoryOrigin }: Props) {
   const [kind, setKind] = useState<Txn['kind']>(initial?.kind ?? 'expense');
   const [amount, setAmount] = useState(initial ? String(Math.abs(initial.amount) / 100) : '');
   const [refund, setRefund] = useState(initial ? initial.amount < 0 : false);
@@ -102,6 +104,7 @@ export default function TransactionForm({ categories, recurring, funds, today, i
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </select>
+        {categoryOrigin && <span className="muted">{categoryOrigin}</span>}
       </label>
       <label>
         שיוך

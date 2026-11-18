@@ -10,7 +10,7 @@ export function txn(p: Partial<Txn> & Pick<Txn, 'date' | 'amount'>): Txn {
   return {
     id: `t${++seq}`, kind: 'expense', merchant: 'm', categoryId: null, recurringItemId: null, fundId: null,
     isCardSettlement: false, source: 'manual', memberId: 'u1', status: 'confirmed',
-    cardLast4: null, importKey: null, needsReview: false, ...p,
+    cardLast4: null, importKey: null, needsReview: false, categoryHint: null, ...p,
   };
 }
 

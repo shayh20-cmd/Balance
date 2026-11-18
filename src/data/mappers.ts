@@ -75,6 +75,7 @@ export function rowToTxn(r: TxnRow): Txn {
     recurringItemId: r.recurring_item_id, fundId: r.fund_id, isCardSettlement: r.is_card_settlement,
     source: r.source, memberId: r.member_id, status: r.status,
     cardLast4: r.card_last4 ?? null, importKey: r.import_key ?? null, needsReview: r.needs_review ?? false,
+    categoryHint: r.category_name_hint ?? null,
   };
 }
 

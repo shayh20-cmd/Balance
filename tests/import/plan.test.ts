@@ -183,3 +183,15 @@ test('a row for an item already paid this month is linked but sent to review', a
   expect(plan.inserts.find((r) => r.merchant === 'שיק')!).toMatchObject({ recurring_item_id: 'rent', needs_review: true });
   expect(plan.summary).toMatchObject({ matched: 0, review: 1 });
 });
+
+test('a learned rule beats Leumi\'s category on import', () => {
+  const plan = planCardImport(card, [], categories, 'h1', 'u1', [], [{ merchantKey: 'express', categoryId: 'c-fun' }]);
+  expect(plan.inserts.filter((r) => r.merchant === 'EXPRESS 7').map((r) => r.category_id)).toEqual(['c-fun', 'c-fun']);
+  expect(plan.inserts.find((r) => r.merchant === 'שומשום קונקורד')!.category_id).toBe('c-out');
+});
+
+test('a rule does not override the person\'s category on a matched txn', () => {
+  const gp = txn({ date: '2026-11-17', amount: 4164, categoryId: 'c-home', cardLast4: '1111' });
+  const plan = planCardImport(card, [gp], categories, 'h1', 'u1', [], [{ merchantKey: "גינגז מרקט קרליבך", categoryId: 'c-fun' }]);
+  expect(plan.updates[0].patch).not.toHaveProperty('category_id');
+});

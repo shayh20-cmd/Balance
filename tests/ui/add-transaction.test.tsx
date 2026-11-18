@@ -52,3 +52,22 @@ test('choosing a fund links the expense to it', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'שמירה' }));
   expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ fundId: 'car', recurringItemId: null, amount: 115000 }), 1);
 });
+
+test('editing a category saves a rule for the merchant', async () => {
+  const { ruleToSave } = await import('../../src/ui/screens/AddTransaction');
+  const before = { merchant: 'EXPRESS 7', categoryId: 'c1' };
+  expect(ruleToSave(before, { merchant: 'EXPRESS 7', categoryId: 'c2' })).toEqual({ merchant: 'EXPRESS 7', categoryId: 'c2' });
+  expect(ruleToSave(before, { merchant: 'EXPRESS 7', categoryId: 'c1' })).toBeNull();
+  expect(ruleToSave(before, { merchant: 'EXPRESS 7', categoryId: null })).toBeNull();
+  expect(ruleToSave(undefined, { merchant: 'EXPRESS 7', categoryId: 'c2' })).toBeNull();
+});
+
+test('the form explains where the category came from', async () => {
+  const { categoryOrigin } = await import('../../src/ui/screens/AddTransaction');
+  const t = { merchant: 'EXPRESS 7', categoryHint: 'מזון וצריכה' };
+  expect(categoryOrigin(t, [{ merchantKey: 'express', categoryId: 'c1' }])).toBe('לפי כלל שלמד מתיקון שלך');
+  expect(categoryOrigin(t, [])).toBe('לפי הקטגוריה של לאומי: מזון וצריכה');
+  expect(categoryOrigin({ merchant: 'x', categoryHint: null }, [])).toBeNull();
+  render(<TransactionForm {...props} onSubmit={vi.fn()} categoryOrigin="לפי כלל שלמד מתיקון שלך" />);
+  expect(screen.getByText('לפי כלל שלמד מתיקון שלך')).toBeInTheDocument();
+});

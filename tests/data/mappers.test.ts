@@ -12,7 +12,7 @@ test('a transaction row converts to a Txn and back', () => {
   expect(t).toEqual({
     id: 't1', date: '2026-11-05', amount: 34200, kind: 'expense', merchant: 'שופרסל', categoryId: 'c1',
     recurringItemId: null, fundId: null, isCardSettlement: false, source: 'apple_pay', memberId: 'u1', status: 'pending',
-    cardLast4: '5218', importKey: null, needsReview: true,
+    cardLast4: '5218', importKey: null, needsReview: true, categoryHint: null,
   });
   const { installment_group, installment_index, installment_count, note, card_last4, import_key, needs_review, category_name_hint, ...core } = txnRow;
   expect(txnToRow(t, 'h1')).toEqual(core);

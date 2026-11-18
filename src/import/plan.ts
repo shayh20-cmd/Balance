@@ -1,6 +1,7 @@
 import type { TxnRow } from '../data/mappers';
 import { addMonths, monthOf } from '../engine/dates';
 import { matchRows } from '../engine/match';
+import { merchantKey } from '../engine/merchant';
 import type { Agorot, ISODate, RecurringItem, Txn } from '../engine/types';
 import { leumiCategoryToOurs } from './categories';
 import { linkRecurring, type CheckingFile, type Link, type LinkRow } from './leumiChecking';
@@ -51,9 +52,12 @@ function links(rows: LinkRow[], items: RecurringItem[], existing: Txn[]): Map<st
  */
 export function planCardImport(
   file: CardFile, existing: Txn[], categories: CategoryRef[], householdId: string, memberId: string,
-  items: RecurringItem[] = [],
+  items: RecurringItem[] = [], rules: { merchantKey: string; categoryId: string }[] = [],
 ): ImportPlan {
-  const categoryFor = (r: ImportedRow) => categories.find((c) => c.name === leumiCategoryToOurs(r.categoryHint))?.id ?? null;
+  // A rule learned from the person's correction wins over Leumi's category.
+  const ruled = new Map(rules.map((r) => [r.merchantKey, r.categoryId]));
+  const categoryFor = (r: ImportedRow) =>
+    ruled.get(merchantKey(r.merchant)) ?? categories.find((c) => c.name === leumiCategoryToOurs(r.categoryHint))?.id ?? null;
   const byKey = new Map(existing.filter((t) => t.importKey).map((t) => [t.importKey!, t]));
   const plan = emptyPlan();
 

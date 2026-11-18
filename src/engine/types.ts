@@ -20,10 +20,12 @@ export interface Txn {
   /** Set on rows that came from a file; unique per household. */
   importKey: string | null;
   needsReview: boolean;
+  /** The bank's own category text, from a file. */
+  categoryHint: string | null;
 }
 
 /** Fields the app writes when a person adds or edits a transaction; the import fields keep their defaults. */
-export type TxnFields = Omit<Txn, 'id' | 'cardLast4' | 'importKey' | 'needsReview'>;
+export type TxnFields = Omit<Txn, 'id' | 'cardLast4' | 'importKey' | 'needsReview' | 'categoryHint'>;
 
 export interface RecurringItem {
   id: string;

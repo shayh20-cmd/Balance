@@ -94,3 +94,46 @@ test('create_device needs a household', async () => {
   await asUser(db, B.id, B.email);
   await expect(db.query(`select create_device('x')`)).rejects.toThrow(/not_member/);
 });
+
+describe('Max notifications', () => {
+  const max = (amount: string, merchant: string, q = '"') => `בוצעה עסקה בסך ${amount} ש${q}ח ב${merchant} בכרטיס המסתיים ב- 5218. פרטים נוספים באפליקציה`;
+  const rows = async () => {
+    await asUser(db, A.id, A.email);
+    return (await db.query(`select merchant, amount_agorot, source, card_last4, status from transactions order by amount_agorot`)).rows;
+  };
+
+  test('a Max notification becomes a pending expense on its card', async () => {
+    await asAnon();
+    expect(await ingest(token, 'max', max('19.0', 'Dott pass'))).toBe('ok');
+    expect(await ingest(token, 'max', `${RLM}${max('18.75', 'Dott scooter ride')}`)).toBe('ok');
+    expect(await rows()).toEqual([
+      { merchant: 'Dott scooter ride', amount_agorot: 1875, source: 'card_app', card_last4: '5218', status: 'pending' },
+      { merchant: 'Dott pass', amount_agorot: 1900, source: 'card_app', card_last4: '5218', status: 'pending' },
+    ]);
+  });
+
+  test('a Hebrew merchant, thousands and the gershayim sign are read', async () => {
+    await asAnon();
+    expect(await ingest(token, 'max', max('1,234.50', 'שופרסל דיל', '״'))).toBe('ok');
+    expect(await rows()).toEqual([{ merchant: 'שופרסל דיל', amount_agorot: 123450, source: 'card_app', card_last4: '5218', status: 'pending' }]);
+  });
+
+  test('the same purchase from Google Wallet and from Max is recorded once', async () => {
+    await asAnon();
+    expect(await ingest(token, 'DOTT', text('19.00'))).toBe('ok');
+    expect(await ingest(token, 'max', max('19.0', 'Dott pass'))).toBe('duplicate');
+    expect(await rows()).toHaveLength(1);
+  });
+
+  test('two purchases of the same amount on another card are both kept', async () => {
+    await asAnon();
+    expect(await ingest(token, 'max', max('19.0', 'Dott pass'))).toBe('ok');
+    expect(await ingest(token, 'max', max('19.0', 'Dott pass').replace('5218', '7712'))).toBe('ok');
+    expect(await rows()).toHaveLength(2);
+  });
+
+  test('an unreadable Max notification goes to the inbox', async () => {
+    await asAnon();
+    expect(await ingest(token, 'max', 'יש לך הודעה חדשה באפליקציה')).toBe('inbox');
+  });
+});

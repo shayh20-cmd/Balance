@@ -16,6 +16,7 @@ const sources: { value: Source; label: string }[] = [
   { value: 'email', label: 'מייל' },
   { value: 'apple_pay', label: 'Apple Pay' },
   { value: 'google_wallet', label: 'Google Wallet' },
+  { value: 'card_app', label: 'מקס' },
 ];
 
 export default function Transactions() {

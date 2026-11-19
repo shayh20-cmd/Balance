@@ -1,7 +1,8 @@
 export type Agorot = number; // integer number of agorot (1/100 ILS)
 export type ISODate = string; // 'YYYY-MM-DD'
 export type Month = string; // 'YYYY-MM'
-export type Source = 'manual' | 'file' | 'sms' | 'email' | 'apple_pay' | 'google_wallet';
+/** card_app: the card company's app notification (Max). */
+export type Source = 'manual' | 'file' | 'sms' | 'email' | 'apple_pay' | 'google_wallet' | 'card_app';
 
 export interface Txn {
   id: string;

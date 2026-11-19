@@ -29,7 +29,7 @@ function CopyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** What to type into MacroDroid on the phone so each Google Wallet notification reaches Balance. */
+/** What to type into MacroDroid on the phone so each card notification (Max, Google Wallet) reaches Balance. */
 export default function DeviceSetup({ token, apiKey }: { token: string; apiKey: string }) {
   return (
     <div className="form device-setup">
@@ -43,7 +43,8 @@ export default function DeviceSetup({ token, apiKey }: { token: string; apiKey: 
           <br />
           <b dir="ltr">Device Events → Notification Received</b>
           <br />
-          ובו <b dir="ltr">Select Application(s)</b> ומסמנים את <b dir="ltr">Google Wallet</b>.
+          ובו <b dir="ltr">Select Application(s)</b> ומסמנים את <b dir="ltr">max</b>. מקס שולח התראה על כל עסקה בכרטיס,
+          גם בחנות וגם באינטרנט. אפשר לסמן גם את <b dir="ltr">Google Wallet</b>; קנייה שתגיע משניהם תיספר פעם אחת.
         </li>
         <li>
           <b>פעולה:</b> לוחצים על הפלוס ליד <b dir="ltr">Actions</b>, ובוחרים

@@ -3,6 +3,7 @@ import type { Source } from '../../engine/types';
 const labels: Record<Source, string> = {
   apple_pay: 'Apple Pay',
   google_wallet: 'Google Wallet',
+  card_app: 'מקס',
   sms: 'SMS',
   email: 'מייל',
   file: 'קובץ',

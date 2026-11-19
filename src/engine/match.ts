@@ -34,7 +34,7 @@ export function matchRows<R extends MatchRow>(existing: Txn[], rows: R[], opts: 
   const res: MatchResult<R> = { matched: [], unmatched: [] };
 
   const open = (t: Txn) => {
-    if (opts.bank) return t.importKey === null && t.cardLast4 === null && t.source !== 'google_wallet' && t.source !== 'apple_pay';
+    if (opts.bank) return t.importKey === null && t.cardLast4 === null && t.source !== 'google_wallet' && t.source !== 'apple_pay' && t.source !== 'card_app';
     // A pending row from an earlier file may come back charged under a new key (date or text changed).
     return t.importKey === null || (t.source === 'file' && t.status === 'pending' && !inFile.has(t.importKey));
   };

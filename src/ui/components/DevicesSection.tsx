@@ -47,7 +47,7 @@ export default function DevicesSection() {
   return (
     <section className="card">
       <h2>קליטה אוטומטית</h2>
-      <p className="muted">טלפון מחובר שולח ל-Balance כל התראת תשלום של Google Wallet, והעסקה נכנסת לבד.</p>
+      <p className="muted">טלפון מחובר שולח ל-Balance כל התראת עסקה מאפליקציית מקס (ו-Google Wallet), והעסקה נכנסת לבד.</p>
       <DeviceList devices={devices} onRevoke={setRevoking} onShow={(d) => setShown(shown === d.token ? null : d.token)} />
       {shown && <DeviceSetup token={shown} apiKey={supabaseKey} />}
       <form className="form" onSubmit={connect}>

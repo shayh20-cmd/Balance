@@ -35,3 +35,12 @@ test('device list shows each phone with its last activity and lets you disconnec
   await userEvent.click(screen.getAllByRole('button', { name: 'ניתוק' })[1]);
   expect(onRevoke).toHaveBeenCalledWith('d2');
 });
+
+test('setup names Max as the app to listen to, with Google Wallet optional', async () => {
+  const { render, screen } = await import('@testing-library/react');
+  const { default: DeviceSetup } = await import('../../src/ui/components/DeviceSetup');
+  const { ToastProvider } = await import('../../src/ui/toast');
+  render(<ToastProvider><DeviceSetup token="t" apiKey="k" /></ToastProvider>);
+  expect(screen.getByText(/ומסמנים את/).closest('li')).toHaveTextContent('max');
+  expect(screen.getByText(/ומסמנים את/).closest('li')).toHaveTextContent('Google Wallet');
+});

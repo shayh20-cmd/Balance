@@ -25,3 +25,11 @@ test('import_files is visible only to members', async () => {
   expect((await db.query(`select count(*)::int n from import_files`)).rows[0]).toEqual({ n: 0 });
   await expect(db.query(`insert into import_files (household_id, kind) values ($1, 'card')`, [hA])).rejects.toThrow();
 });
+
+test('savings_goals is visible only to members and rejects a negative amount', async () => {
+  await asUser(db, A.id, A.email);
+  await db.query(`insert into savings_goals (household_id, month, amount_agorot) values ($1, '2026-11-01', 300000)`, [hA]);
+  await expect(db.query(`insert into savings_goals (household_id, month, amount_agorot) values ($1, '2026-12-01', -1)`, [hA])).rejects.toThrow();
+  await asUser(db, B.id, B.email);
+  expect((await db.query(`select count(*)::int n from savings_goals`)).rows[0]).toEqual({ n: 0 });
+});

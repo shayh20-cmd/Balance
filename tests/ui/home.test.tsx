@@ -9,7 +9,7 @@ import { HomeView } from '../../src/ui/screens/Home';
 import { txn } from '../fixtures/engine';
 
 const summary: MonthSummary = {
-  month: '2026-11', income: 2150000, fixed: 1090000, fundProvision: 240000, fundOverspend: 0,
+  month: '2026-11', income: 2150000, fixed: 1090000, fundProvision: 240000, fundOverspend: 0, maxSavings: 820000, savingsGoal: 0,
   variableBudget: 820000, variableSpent: 136000, leftToSpend: 684000,
 };
 const week: WeekStatus = {
@@ -33,12 +33,12 @@ test('shows left-to-spend formatted, with the month and household', () => {
   expect(screen.getByText('בית כהן · 2 משתתפים')).toBeInTheDocument();
 });
 
-test('week line shows spent and remaining', () => {
+test('the week sits small inside the left-to-spend card', () => {
   renderHome();
-  expect(screen.getByText('השבוע (1 מתוך 5)')).toBeInTheDocument();
-  expect(screen.getByText('הוצאתם')).toBeInTheDocument();
-  expect(screen.getByText('1,020 ₪')).toBeInTheDocument();
-  expect(screen.getByText('נשארו 620 ₪ עד שבת')).toBeInTheDocument();
+  const hero = screen.getByText('נשאר לבזבז החודש').closest('.hero')!;
+  expect(hero).toHaveTextContent('השבוע (1 מתוך 5)');
+  expect(hero).toHaveTextContent('1,020 ₪ מתוך 1,640 ₪');
+  expect(hero).toHaveTextContent('נשארו 620 ₪ עד שבת');
 });
 
 test('pace warning only when projectedOverspend > 0', () => {
@@ -87,10 +87,16 @@ test('review count card shows only when there is something to review', () => {
   expect(screen.getAllByRole('link', { name: /לבדיקה/ })[0]).toHaveAttribute('href', '/review');
 });
 
-test('recent row shows the merchant initial and the date', () => {
-  renderHome({ recent: [txn({ date: '2026-11-03', amount: 34200, merchant: 'שופרסל', source: 'manual' })] });
-  expect(screen.getByText('ש')).toBeInTheDocument();
-  expect(screen.getByText('3.11.2026')).toBeInTheDocument();
+test('recent row shows the category, with its icon, instead of the merchant initial', () => {
+  renderHome({
+    recent: [txn({ date: '2026-11-03', amount: 34200, merchant: 'שופרסל', source: 'manual', categoryId: 'c1' })],
+    categories: [{ id: 'c1', name: 'סופר' }],
+  });
+  const row = screen.getByText('שופרסל').closest('.tx')!;
+  expect(row.querySelector('.tx-icon svg')).not.toBeNull();
+  expect(row).toHaveTextContent('סופר');
+  expect(row).toHaveTextContent('3.11.2026');
+  expect(screen.queryByText('ש')).toBeNull();
 });
 
 test('ProgressBar clamps its ratio to [0, 1]', () => {
@@ -139,4 +145,28 @@ test('another month hides the week and says what the number means', () => {
   expect(screen.getByText('נשאר בסוף החודש')).toBeInTheDocument();
   renderHome({ week: null, current: 'future' });
   expect(screen.getByText('צפוי להוצאות משתנות')).toBeInTheDocument();
+});
+
+test('savings card shows the goal and the most that can be saved, and saves an edit', async () => {
+  const onSaveGoal = vi.fn();
+  renderHome({ summary: { ...summary, savingsGoal: 300000, maxSavings: 1120000 }, onSaveGoal });
+  const card = screen.getByText('יעד חיסכון החודש').closest('section')!;
+  expect(card).toHaveTextContent('3,000 ₪');
+  expect(card).toHaveTextContent('אפשר לחסוך עד 11,200 ₪');
+  await userEvent.click(screen.getByRole('button', { name: 'עריכת יעד החיסכון' }));
+  const input = screen.getByLabelText('סכום לחיסכון');
+  await userEvent.clear(input);
+  await userEvent.type(input, '4,500');
+  await userEvent.click(screen.getByRole('button', { name: 'שמירה' }));
+  expect(onSaveGoal).toHaveBeenCalledWith(450000);
+});
+
+test('a savings goal above the most that can be saved is refused', async () => {
+  const onSaveGoal = vi.fn();
+  renderHome({ summary: { ...summary, savingsGoal: 0, maxSavings: 100000 }, onSaveGoal });
+  await userEvent.click(screen.getByRole('button', { name: 'עריכת יעד החיסכון' }));
+  await userEvent.type(screen.getByLabelText('סכום לחיסכון'), '2000');
+  await userEvent.click(screen.getByRole('button', { name: 'שמירה' }));
+  expect(screen.getByText('אפשר לחסוך עד 1,000 ₪ החודש')).toBeInTheDocument();
+  expect(onSaveGoal).not.toHaveBeenCalled();
 });

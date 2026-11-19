@@ -174,3 +174,19 @@ a.card:active, .tx:active, .fab:active, button:active:not(:disabled) { transform
 .detail-line .amounts { text-align: end; display: flex; flex-direction: column; gap: 2px; }
 .card.dark .card-head .label { color: #fff !important; }
 .chip.dark-chip { background: rgb(255 255 255 / 10%); color: #fff; }
+/* week inside the warm card, small */
+.hero-week { margin-block-start: 14px; padding-block-start: 12px; border-block-start: 1px solid rgb(20 20 20 / 12%); font-size: var(--fs-label); }
+.hero-week .split { align-items: center; color: rgb(20 20 20 / 75%); }
+.hero-week .bar { height: 6px; margin-block: 8px 4px; }
+.hero .bar > i.week { background: rgb(20 20 20 / 55%); }
+.hero .bar > i.warn { background: var(--warn); }
+/* savings goal */
+.chip.savings { background: rgb(213 243 91 / 45%); }
+.text-btn { background: transparent !important; box-shadow: none; padding: 10px 12px; min-height: 44px; font-size: var(--fs-label); text-decoration: underline; text-underline-offset: 3px; }
+.savings-form { display: flex; flex-direction: column; gap: 10px; }
+.savings-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-label); color: var(--muted); }
+.savings-form input[type=range] { width: 100%; accent-color: var(--text); }
+/* category icon in transaction rows */
+.tx-icon svg { width: 20px; height: 20px; }
+.tx-icon.income { background: rgb(27 125 82 / 12%); color: var(--income); }
+.tx-icon.fixed { background: rgb(58 63 75 / 10%); color: var(--fixed); }

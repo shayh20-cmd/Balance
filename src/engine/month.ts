@@ -10,6 +10,8 @@ export interface MonthInput {
   carryIn: Agorot; // from the previous month's close (plan 4); 0 until then
   /** Per item id, the sum of linked actuals per earlier month (for variable-amount items). */
   history?: Record<string, Record<Month, Agorot>>;
+  /** How much the household wants to save this month; it comes out of the variable budget. */
+  savingsGoal?: Agorot;
 }
 
 export interface MonthSummary {
@@ -21,6 +23,9 @@ export interface MonthSummary {
   variableBudget: Agorot;
   variableSpent: Agorot;
   leftToSpend: Agorot;
+  /** The most that can be saved: income − fixed − fund provision (+ carry-in), before the goal. */
+  maxSavings: Agorot;
+  savingsGoal: Agorot;
 }
 
 export function isDueInMonth(item: RecurringItem, m: Month): boolean {
@@ -65,7 +70,9 @@ export function computeMonth(input: MonthInput): MonthSummary {
   const fixed = recurringTotal(recurring, 'fixed', month, txns, history);
   const fundProvision = input.funds.reduce((a, f) => a + provisionOf(f, month), 0);
   const fundOverspend = input.funds.reduce((a, f) => a + overspendOf(f, month, txns), 0);
-  const variableBudget = income - fixed - fundProvision + carryIn;
+  const maxSavings = income - fixed - fundProvision + carryIn;
+  const savingsGoal = Math.max(0, input.savingsGoal ?? 0);
+  const variableBudget = maxSavings - savingsGoal;
   const variableSpent = sum(txns.filter(isVariable)) + fundOverspend;
-  return { month, income, fixed, fundProvision, fundOverspend, variableBudget, variableSpent, leftToSpend: variableBudget - variableSpent };
+  return { month, income, fixed, fundProvision, fundOverspend, maxSavings, savingsGoal, variableBudget, variableSpent, leftToSpend: variableBudget - variableSpent };
 }

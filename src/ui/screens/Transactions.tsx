@@ -5,6 +5,7 @@ import { addMonths, monthOf, todayInIsrael } from '../../engine/dates';
 import type { Source } from '../../engine/types';
 import Amount from '../components/Amount';
 import SourcePill from '../components/SourcePill';
+import TxIcon from '../components/TxIcon';
 import { monthName, shortDate } from '../format';
 import { useHousehold } from '../household';
 
@@ -78,10 +79,15 @@ export default function Transactions() {
         <section className="card">
           {rows.length === 0 && <p className="muted">אין עסקאות להצגה</p>}
           {rows.map((t) => (
-            <Link key={t.id} to={`/tx/${t.id}`} className="row link-row">
-              <span>
-                <span>{t.merchant || categoryName(t.categoryId) || 'ללא תיאור'}</span> <SourcePill source={t.source} />
-                <div className="muted">{[shortDate(t.date), categoryName(t.categoryId)].filter(Boolean).join(' · ')}</div>
+            <Link key={t.id} to={`/tx/${t.id}`} className="tx link-row">
+              <TxIcon txn={t} categoryName={categoryName(t.categoryId) || null} />
+              <span className="tx-name">
+                <span>{t.merchant || categoryName(t.categoryId) || 'ללא תיאור'}</span>
+                <span className="tx-sub">
+                  <span>{categoryName(t.categoryId) || (t.kind === 'income' ? 'הכנסה' : t.recurringItemId ? 'הוצאה קבועה' : 'ללא קטגוריה')}</span>
+                  <span>{shortDate(t.date)}</span>
+                  <SourcePill source={t.source} />
+                </span>
               </span>
               <Amount value={t.amount} className={t.kind === 'income' ? 'income' : ''} />
             </Link>

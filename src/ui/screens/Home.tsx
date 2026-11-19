@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { monthCloses, reviewCount } from '../../data/importRepo';
-import { loadMonth, type BankBalance, type MonthData } from '../../data/repo';
+import { loadMonth, setSavingsGoal, type BankBalance, type MonthData } from '../../data/repo';
 import { addMonths, monthOf, todayInIsrael } from '../../engine/dates';
 import { formatShekels } from '../../engine/money';
 import { breakdown as breakdownOf, type Breakdown } from '../../engine/breakdown';
@@ -11,6 +11,8 @@ import { computeWeek, type WeekStatus } from '../../engine/week';
 import Amount from '../components/Amount';
 import CloseReminder from '../components/CloseReminder';
 import Icon from '../components/Icon';
+import SavingsCard from '../components/SavingsCard';
+import TxIcon from '../components/TxIcon';
 import ProgressBar from '../components/ProgressBar';
 import SourcePill from '../components/SourcePill';
 import { monthName, shortDate } from '../format';
@@ -26,6 +28,10 @@ interface HomeViewProps {
   current?: 'past' | 'now' | 'future';
   onPrev?: () => void;
   onNext?: () => void;
+  /** For the category shown on each recent transaction. */
+  categories?: { id: string; name: string }[];
+  /** Saves the month's savings goal; without it the card is read-only. */
+  onSaveGoal?: (amount: number) => void;
   recent: Txn[];
   bank: BankBalance | null;
   householdName: string;
@@ -43,10 +49,6 @@ function rise(i: number) {
   return { style: { '--i': i } as CSSProperties };
 }
 
-function initial(merchant: string): string {
-  return merchant.trim().charAt(0).toUpperCase() || '·';
-}
-
 /** Fixed and variable as two segments of the month's spending. */
 function SplitBar({ fixed, variable }: { fixed: number; variable: number }) {
   const total = fixed + variable;
@@ -62,7 +64,7 @@ function SplitBar({ fixed, variable }: { fixed: number; variable: number }) {
 const heroLabel = { past: 'נשאר בסוף החודש', now: 'נשאר לבזבז החודש', future: 'צפוי להוצאות משתנות' };
 
 export function HomeView({
-  summary, week, breakdown, current = 'now', onPrev, onNext, recent, bank, householdName, memberCount, closed = null, today,
+  summary, week, breakdown, current = 'now', onPrev, onNext, onSaveGoal, categories = [], recent, bank, householdName, memberCount, closed = null, today,
   toReview = 0, intro = false,
 }: HomeViewProps) {
   const overspending = (week?.projectedOverspend ?? 0) > 0;
@@ -88,29 +90,21 @@ export function HomeView({
         <Amount value={summary.leftToSpend} className="big" animate />
         <div className="sub">{`מתוך ${formatShekels(summary.variableBudget)} להוצאות משתנות`}</div>
         <ProgressBar value={summary.variableSpent} max={summary.variableBudget} tone={summary.leftToSpend < 0 ? 'bad' : 'good'} />
+        {week && (
+          <div className="hero-week">
+            <div className="split">
+              <span>{`השבוע (${week.week.index} מתוך ${week.weekCount})`}</span>
+              <span>{`${formatShekels(week.spent)} מתוך ${formatShekels(week.target)}`}</span>
+            </div>
+            <ProgressBar value={week.spent} max={week.target} tone={overspending || week.remaining < 0 ? 'warn' : 'week'} />
+            <div className="sub">{`נשארו ${formatShekels(week.remaining)} עד שבת`}</div>
+            {overspending && <div className="warn-text">{`בקצב הנוכחי תחרגו בכ-${formatShekels(week.projectedOverspend)}`}</div>}
+          </div>
+        )}
       </section>
 
-      {week && (
-      <section className="card week rise" {...rise(2)}>
-        <div className="card-head">
-          <span className="chip week"><Icon name="calendar" /></span>
-          <h2 className="card-title label">{`השבוע (${week.week.index} מתוך ${week.weekCount})`}</h2>
-        </div>
-        <div className="split">
-          <div>
-            <div className="label">הוצאתם</div>
-            <Amount value={week.spent} className="mid" animate />
-          </div>
-          <div className="end">
-            <div className="label">יעד שבועי</div>
-            <Amount value={week.target} className="small" />
-          </div>
-        </div>
-        <ProgressBar value={week.spent} max={week.target} tone={overspending || week.remaining < 0 ? 'warn' : 'good'} />
-        <div className="sub">{`נשארו ${formatShekels(week.remaining)} עד שבת`}</div>
-        {overspending && <div className="warn-text">{`בקצב הנוכחי תחרגו בכ-${formatShekels(week.projectedOverspend)}`}</div>}
-      </section>
-      )}
+      <SavingsCard goal={summary.savingsGoal} max={summary.maxSavings} onSave={onSaveGoal} />
+
 
       {breakdown && (
         <Link to={`/month/${m}/income`} className="card tile-link rise" {...rise(3)}>
@@ -188,12 +182,13 @@ export function HomeView({
         {recent.length === 0 && <p className="muted">אין עדיין עסקאות החודש</p>}
         {recent.map((t) => (
           <Link key={t.id} to={`/tx/${t.id}`} className="tx link-row">
-            <span className="tx-icon" aria-hidden="true">{initial(t.merchant)}</span>
+            <TxIcon txn={t} categoryName={categories.find((c) => c.id === t.categoryId)?.name ?? null} />
             <span className="tx-name">
               <span>{t.merchant}</span>
               <span className="tx-sub">
-                <SourcePill source={t.source} />
+                <span>{categories.find((c) => c.id === t.categoryId)?.name ?? (t.kind === 'income' ? 'הכנסה' : t.recurringItemId ? 'הוצאה קבועה' : 'ללא קטגוריה')}</span>
                 <span>{shortDate(t.date)}</span>
+                <SourcePill source={t.source} />
               </span>
             </span>
             <Amount value={t.amount} className={t.kind === 'income' ? 'income' : ''} />
@@ -247,8 +242,15 @@ export default function Home() {
       current={current}
       onPrev={() => setMonth(addMonths(month, -1))}
       onNext={() => setMonth(addMonths(month, 1))}
+      onSaveGoal={(amount) => {
+        setSavingsGoal(household.id, month, amount).then(
+          () => setData({ ...data, savingsGoal: amount }),
+          () => setError(true),
+        );
+      }}
       recent={data.txns.filter((t) => !t.isCardSettlement).slice(0, 5)}
       bank={data.bankBalance}
+      categories={data.categories}
       householdName={household.name}
       memberCount={data.members.length}
       closed={current === 'now' ? closed : null}

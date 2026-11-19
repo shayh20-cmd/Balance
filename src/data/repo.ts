@@ -52,7 +52,7 @@ export async function acceptInvite(token: string, displayName: string): Promise<
 export async function loadMonth(householdId: string, month: Month): Promise<MonthData> {
   const from = `${month}-01`;
   const to = `${addMonths(month, 1)}-01`;
-  const [txns, recurring, funds, entries, categories, members, bank, fundSpend, linked] = await Promise.all([
+  const [txns, recurring, funds, entries, categories, members, bank, fundSpend, linked, goal] = await Promise.all([
     supabase.from('transactions').select('*').eq('household_id', householdId).gte('date', from).lt('date', to)
       .order('date', { ascending: false }).order('created_at', { ascending: false }),
     supabase.from('recurring_items').select('*').eq('household_id', householdId).order('created_at'),
@@ -67,6 +67,7 @@ export async function loadMonth(householdId: string, month: Month): Promise<Mont
     // linked actuals of the last 6 months, for variable-amount items' expected amount
     supabase.from('transactions').select('recurring_item_id, date, amount_agorot').eq('household_id', householdId)
       .not('recurring_item_id', 'is', null).gte('date', `${addMonths(month, -6)}-01`).lt('date', from),
+    supabase.from('savings_goals').select('amount_agorot').eq('household_id', householdId).eq('month', from).maybeSingle(),
   ]);
   const history: Record<string, Record<Month, Agorot>> = {};
   for (const r of check(linked) as { recurring_item_id: string; date: string; amount_agorot: number }[]) {
@@ -85,6 +86,8 @@ export async function loadMonth(householdId: string, month: Month): Promise<Mont
     funds: (check(funds) as FundRow[]).map((r) => ({ ...rowToFund(r, entryRows, month, spendRows), annual: r.annual })),
     carryIn: 0,
     history,
+    // a missing table (before migration 0007) counts as no goal
+    savingsGoal: goal.error ? 0 : (goal.data as { amount_agorot: number } | null)?.amount_agorot ?? 0,
     categories: check(categories) as Category[],
     members: memberRows.map((m) => ({ userId: m.user_id, displayName: m.display_name, role: m.role })),
     bankBalance: bankRow ? { amount: bankRow.amount_agorot, asOf: bankRow.as_of } : null,
@@ -219,4 +222,11 @@ export async function learnItemMerchant(itemId: string, merchant: string): Promi
 /** "Not related": the transaction goes back to ordinary spending. */
 export async function unlinkTransaction(txnId: string): Promise<void> {
   check(await supabase.from('transactions').update({ recurring_item_id: null, needs_review: false }).eq('id', txnId));
+}
+
+/** The month's savings goal; it comes out of "left to spend". */
+export async function setSavingsGoal(householdId: string, month: Month, amount: Agorot): Promise<void> {
+  check(await supabase.from('savings_goals').upsert({
+    household_id: householdId, month: `${month}-01`, amount_agorot: Math.max(0, Math.round(amount)), updated_at: new Date().toISOString(),
+  }));
 }

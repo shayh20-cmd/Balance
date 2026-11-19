@@ -10,7 +10,7 @@ const base = { month: '2026-11', recurring, funds: [], txns: [], carryIn: 0 };
 
 test('empty input gives all zeros', () => {
   expect(computeMonth({ month: '2026-11', recurring: [], funds: [], txns: [], carryIn: 0 })).toEqual({
-    month: '2026-11', income: 0, fixed: 0, fundProvision: 0, fundOverspend: 0,
+    month: '2026-11', income: 0, fixed: 0, fundProvision: 0, fundOverspend: 0, maxSavings: 0, savingsGoal: 0,
     variableBudget: 0, variableSpent: 0, leftToSpend: 0,
   });
 });
@@ -132,4 +132,19 @@ test('a month with two linked payments counts as their sum', () => {
 test('non-variable item ignores history', () => {
   const fixedWater = { ...water, variableAmount: false };
   expect(expectedAmount(fixedWater, { '2026-10': 50000 }, '2026-11')).toBe(23900);
+});
+
+test('a savings goal comes out of the variable budget and the week target follows', async () => {
+  const { computeWeek } = await import('../../src/engine/week');
+  const plain = computeMonth(base);
+  const saving = computeMonth({ ...base, savingsGoal: 300000 });
+  expect(saving.maxSavings).toBe(plain.variableBudget);
+  expect(saving.savingsGoal).toBe(300000);
+  expect(saving.variableBudget).toBe(plain.variableBudget - 300000);
+  expect(saving.leftToSpend).toBe(plain.leftToSpend - 300000);
+  expect(computeWeek({ ...base, savingsGoal: 300000 }, '2026-11-01').target).toBeLessThan(computeWeek(base, '2026-11-01').target);
+});
+
+test('a negative savings goal counts as none', () => {
+  expect(computeMonth({ ...base, savingsGoal: -5 }).variableBudget).toBe(computeMonth(base).variableBudget);
 });
